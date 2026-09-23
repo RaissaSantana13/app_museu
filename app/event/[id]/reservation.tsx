@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Href, useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
     ScrollView,
@@ -11,80 +11,197 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { MenuModal } from "@/components/MenuModal";
-import { COLORS } from "@/constants/theme";
+import { MenuModal } from "../../../components/MenuModal";
+import { COLORS } from "../../../constants/theme";
 
 type ReservationType = "individual" | "group";
 
-// Dados temporários enquanto não existe API
-const EVENT_MOCK = {
-  id: "1",
-  title: "O solo vira arte",
-  location: "Sala de Exposições Temporárias",
-  date: "24 de maio de 2026",
-  time: "14:00",
+interface School {
+  id: string;
+  name: string;
+  cnpj: string;
+}
+
+interface SchoolGroup {
+  id: string;
+  schoolId: string;
+  name: string;
+  totalStudents: number;
+}
+
+interface Schedule {
+  id: string;
+  date: string;
+  details: string;
+}
+
+/*
+  Dados temporários.
+
+  Quando a API existir, esses dados deverão vir do backend.
+
+  Os dados que o usuário precisa preencher NÃO começam preenchidos.
+*/
+const EVENT_DATA = {
+  title: "Um dia muito especial",
+  location: "Museu de Birigui",
   availableSpots: 30,
+
+  schedules: [
+    {
+      id: "1",
+      date: "10/05",
+      details: "Quarta, às 19h",
+    },
+    {
+      id: "2",
+      date: "11/05",
+      details: "Quinta, às 19h",
+    },
+    {
+      id: "3",
+      date: "12/05",
+      details: "Sexta, às 19h",
+    },
+  ] as Schedule[],
 };
 
-const SCHOOL_MOCK = {
-  id: "1",
-  name: "E.E. Prof. Stélio Machado Loureiro",
-  cnpj: "46.123.456/0001-89",
-};
+const SCHOOLS: School[] = [
+  {
+    id: "1",
+    name: "E.E. Prof. Stélio Machado Loureiro",
+    cnpj: "46.123.456/0001-89",
+  },
+  {
+    id: "2",
+    name: "E.E. Dr. Carlos Carvalho Rosa",
+    cnpj: "12.345.678/0001-90",
+  },
+];
 
-const GROUP_MOCK = {
-  id: "1",
-  name: "9º Ano B - Ensino Fundamental II",
-  totalStudents: 32,
-};
+const GROUPS: SchoolGroup[] = [
+  {
+    id: "1",
+    schoolId: "1",
+    name: "9º Ano B",
+    totalStudents: 32,
+  },
+  {
+    id: "2",
+    schoolId: "1",
+    name: "8º Ano A",
+    totalStudents: 28,
+  },
+  {
+    id: "3",
+    schoolId: "2",
+    name: "3º Ano A",
+    totalStudents: 25,
+  },
+];
 
-const REPRESENTATIVE_MOCK = {
-  name: "Profa. Mariana Souza Silva",
-  email: "mariana.silva@educacao.sp.gov.br",
+/*
+  Também temporário enquanto não há API/autenticação integrada.
+*/
+const REPRESENTATIVE = {
+  name: "Mariana Souza Silva",
+  email: "mariana@educacao.sp.gov.br",
   phone: "(18) 99123-4567",
 };
 
 export default function ReservationScreen() {
+  const { id } = useLocalSearchParams();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { id } = useLocalSearchParams();
 
   const [isMenuVisible, setIsMenuVisible] = useState(false);
 
   const [reservationType, setReservationType] =
     useState<ReservationType>("individual");
 
-  // Reserva individual
-  const [firstName, setFirstName] = useState("Mariana");
-  const [lastName, setLastName] = useState("Souza Silva");
-  const [email, setEmail] = useState("mariana.silva@gmail.com");
-  const [phone, setPhone] = useState("(18) 99123-4567");
+  /*
+    Data e horário
+  */
+  const [selectedSchedule, setSelectedSchedule] = useState<string | null>(null);
 
-  // Reserva em grupo
-  const [participants, setParticipants] = useState(1);
+  /*
+    Individual
+  */
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
 
-  // Campo utilizado nas duas modalidades
+  /*
+    Grupo escolar
+  */
+  const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
+
+  const [selectedGroup, setSelectedGroup] = useState<SchoolGroup | null>(null);
+
+  const [showSchools, setShowSchools] = useState(false);
+  const [showGroups, setShowGroups] = useState(false);
+
+  const [participants, setParticipants] = useState("");
+
+  /*
+    Campos comuns
+  */
   const [notes, setNotes] = useState("");
-
   const [formError, setFormError] = useState("");
 
-  const notEnoughSpots =
-    reservationType === "group" && participants > EVENT_MOCK.availableSpots;
+  const participantCount = Number(participants);
 
-  function increaseParticipants() {
-    setParticipants((current) => current + 1);
+  const selectedScheduleData = EVENT_DATA.schedules.find(
+    (schedule) => schedule.id === selectedSchedule,
+  );
+
+  const availableGroups = GROUPS.filter(
+    (group) => group.schoolId === selectedSchool?.id,
+  );
+
+  const notEnoughSpots =
+    reservationType === "group" &&
+    participants !== "" &&
+    participantCount > EVENT_DATA.availableSpots;
+
+  function handleReservationType(type: ReservationType) {
+    setReservationType(type);
+    setFormError("");
   }
 
-  function decreaseParticipants() {
-    setParticipants((current) => Math.max(1, current - 1));
+  function selectSchool(school: School) {
+    setSelectedSchool(school);
+
+    // Se trocar de escola, remove a turma selecionada anteriormente.
+    setSelectedGroup(null);
+
+    setShowSchools(false);
+    setShowGroups(false);
+  }
+
+  function selectGroup(group: SchoolGroup) {
+    setSelectedGroup(group);
+    setShowGroups(false);
   }
 
   function handleSubmit() {
     setFormError("");
 
+    /*
+      Data e horário são obrigatórios
+    */
+    if (!selectedSchedule) {
+      setFormError("Selecione uma data e horário.");
+      return;
+    }
+
+    /*
+      Validação individual
+    */
     if (reservationType === "individual") {
       if (!firstName.trim() || !lastName.trim() || !email.trim()) {
-        setFormError("Preencha os campos obrigatórios.");
+        setFormError("Preencha todos os campos obrigatórios.");
         return;
       }
 
@@ -94,9 +211,22 @@ export default function ReservationScreen() {
       }
     }
 
+    /*
+      Validação de grupo
+    */
     if (reservationType === "group") {
-      if (participants <= 0) {
-        setFormError("Informe a quantidade de participantes.");
+      if (!selectedSchool) {
+        setFormError("Selecione uma escola.");
+        return;
+      }
+
+      if (!selectedGroup) {
+        setFormError("Selecione uma turma.");
+        return;
+      }
+
+      if (!participants || participantCount <= 0) {
+        setFormError("Informe a quantidade de participantes esperados.");
         return;
       }
 
@@ -108,7 +238,36 @@ export default function ReservationScreen() {
       }
     }
 
-    router.push(`/event/${String(id ?? EVENT_MOCK.id)}/confirmation` as Href);
+    /*
+      Por enquanto apenas navega para a confirmação.
+
+      Quando houver API, aqui futuramente será feita a requisição
+      para criar a reserva.
+    */
+    router.push({
+      pathname: "/event/[id]/confirmation",
+      params: {
+        id: String(id),
+
+        reservationType,
+
+        eventTitle: EVENT_DATA.title,
+
+        date: selectedScheduleData?.date ?? "",
+        schedule: selectedScheduleData?.details ?? "",
+
+        visitorName:
+          reservationType === "individual"
+            ? `${firstName} ${lastName}`.trim()
+            : "",
+
+        school: reservationType === "group" ? (selectedSchool?.name ?? "") : "",
+
+        group: reservationType === "group" ? (selectedGroup?.name ?? "") : "",
+
+        participants: reservationType === "group" ? participants : "1",
+      },
+    });
   }
 
   return (
@@ -146,61 +305,99 @@ export default function ReservationScreen() {
         </View>
       </View>
 
+      {/* CONTEÚDO */}
       <ScrollView
         style={styles.content}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.pageTitle}>
-          {reservationType === "individual"
-            ? "Reserva individual"
-            : "Reserva de evento"}
-        </Text>
+        <Text style={styles.pageTitle}>Reserva de evento</Text>
 
         <Text style={styles.pageDescription}>
-          Agende sua visita e aproveite a programação do Museu de Birigui.
+          Escolha a data e preencha as informações da reserva.
         </Text>
 
         {/* EVENTO */}
         <View style={styles.eventCard}>
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>EXPOSIÇÃO SELECIONADA</Text>
+          <View style={styles.eventBadge}>
+            <Text style={styles.eventBadgeText}>EVENTO SELECIONADO</Text>
           </View>
 
-          <Text style={styles.eventTitle}>{EVENT_MOCK.title}</Text>
+          <Text style={styles.eventTitle}>{EVENT_DATA.title}</Text>
 
           <View style={styles.eventInfo}>
-            <Ionicons name="location" size={14} color={COLORS.yellowIcon} />
-            <Text style={styles.eventInfoText}>{EVENT_MOCK.location}</Text>
-          </View>
+            <Ionicons name="location" size={15} color={COLORS.yellowIcon} />
 
-          <View style={styles.eventInfo}>
-            <Ionicons name="calendar" size={14} color={COLORS.yellowIcon} />
-            <Text style={styles.eventInfoText}>{EVENT_MOCK.date}</Text>
-          </View>
-
-          <View style={styles.eventInfo}>
-            <Ionicons name="time" size={14} color={COLORS.yellowIcon} />
-            <Text style={styles.eventInfoText}>{EVENT_MOCK.time}</Text>
+            <Text style={styles.eventInfoText}>{EVENT_DATA.location}</Text>
           </View>
 
           <Text style={styles.availableSpots}>
-            {EVENT_MOCK.availableSpots} vagas disponíveis para esta sessão
+            {EVENT_DATA.availableSpots} vagas disponíveis
           </Text>
         </View>
 
+        {/* DATA E HORÁRIO */}
+        <Text style={styles.sectionTitle}>Data e horário *</Text>
+
+        <View style={styles.scheduleContainer}>
+          {EVENT_DATA.schedules.map((schedule) => {
+            const isSelected = selectedSchedule === schedule.id;
+
+            return (
+              <TouchableOpacity
+                key={schedule.id}
+                style={[
+                  styles.scheduleOption,
+                  isSelected && styles.scheduleOptionSelected,
+                ]}
+                onPress={() => {
+                  setSelectedSchedule(schedule.id);
+                  setFormError("");
+                }}
+              >
+                <View>
+                  <Text
+                    style={[
+                      styles.scheduleDate,
+                      isSelected && styles.scheduleTextSelected,
+                    ]}
+                  >
+                    {schedule.date}
+                  </Text>
+
+                  <Text
+                    style={[
+                      styles.scheduleDetails,
+                      isSelected && styles.scheduleTextSelected,
+                    ]}
+                  >
+                    {schedule.details}
+                  </Text>
+                </View>
+
+                {isSelected && (
+                  <Ionicons
+                    name="checkmark-circle"
+                    size={23}
+                    color={COLORS.yellowIcon}
+                  />
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
         {/* TIPO DE RESERVA */}
+        <Text style={styles.sectionTitle}>Tipo de reserva</Text>
+
         <View style={styles.typeSelector}>
           <TouchableOpacity
             style={[
               styles.typeButton,
               reservationType === "individual" && styles.typeButtonActive,
             ]}
-            onPress={() => {
-              setReservationType("individual");
-              setFormError("");
-            }}
+            onPress={() => handleReservationType("individual")}
           >
             <Text
               style={[
@@ -217,10 +414,7 @@ export default function ReservationScreen() {
               styles.typeButton,
               reservationType === "group" && styles.typeButtonActive,
             ]}
-            onPress={() => {
-              setReservationType("group");
-              setFormError("");
-            }}
+            onPress={() => handleReservationType("group")}
           >
             <Text
               style={[
@@ -233,10 +427,11 @@ export default function ReservationScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* FORMULÁRIO INDIVIDUAL */}
+        {/* RESERVA INDIVIDUAL */}
         {reservationType === "individual" && (
           <>
             <Text style={styles.label}>Nome *</Text>
+
             <TextInput
               style={styles.input}
               value={firstName}
@@ -246,6 +441,7 @@ export default function ReservationScreen() {
             />
 
             <Text style={styles.label}>Sobrenome *</Text>
+
             <TextInput
               style={styles.input}
               value={lastName}
@@ -255,6 +451,7 @@ export default function ReservationScreen() {
             />
 
             <Text style={styles.label}>E-mail *</Text>
+
             <TextInput
               style={styles.input}
               value={email}
@@ -266,6 +463,7 @@ export default function ReservationScreen() {
             />
 
             <Text style={styles.label}>Telefone</Text>
+
             <TextInput
               style={styles.input}
               value={phone}
@@ -277,88 +475,139 @@ export default function ReservationScreen() {
           </>
         )}
 
-        {/* FORMULÁRIO DE GRUPO */}
+        {/* RESERVA DE GRUPO */}
         {reservationType === "group" && (
           <>
+            {/* ESCOLA */}
             <Text style={styles.label}>Escola *</Text>
 
-            <TouchableOpacity style={styles.selectInput}>
-              <Text style={styles.selectText}>{SCHOOL_MOCK.name}</Text>
+            <TouchableOpacity
+              style={styles.select}
+              onPress={() => setShowSchools(!showSchools)}
+            >
+              <Text
+                style={[
+                  styles.selectText,
+                  !selectedSchool && styles.placeholderText,
+                ]}
+              >
+                {selectedSchool ? selectedSchool.name : "Selecione uma escola"}
+              </Text>
+
               <Ionicons
-                name="chevron-down"
+                name={showSchools ? "chevron-up" : "chevron-down"}
                 size={18}
                 color={COLORS.primaryBrown}
               />
             </TouchableOpacity>
 
-            <Text style={styles.helperText}>CNPJ: {SCHOOL_MOCK.cnpj}</Text>
+            {showSchools && (
+              <View style={styles.optionsContainer}>
+                {SCHOOLS.map((school) => (
+                  <TouchableOpacity
+                    key={school.id}
+                    style={styles.option}
+                    onPress={() => selectSchool(school)}
+                  >
+                    <Text style={styles.optionText}>{school.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
 
-            {/* Visual apenas, sem funcionalidade */}
-            <Text style={styles.addSchoolText}>+ Cadastrar nova escola</Text>
+            {selectedSchool && (
+              <Text style={styles.helperText}>CNPJ: {selectedSchool.cnpj}</Text>
+            )}
 
-            <Text style={styles.label}>Grupo/Turma *</Text>
+            {/* SOMENTE VISUAL */}
+            <Text style={styles.addSchool}>+ Cadastrar nova escola</Text>
 
-            <TouchableOpacity style={styles.selectInput}>
-              <Text style={styles.selectText}>{GROUP_MOCK.name}</Text>
+            {/* TURMA */}
+            <Text style={styles.label}>Grupo / Turma *</Text>
+
+            <TouchableOpacity
+              style={[styles.select, !selectedSchool && styles.selectDisabled]}
+              disabled={!selectedSchool}
+              onPress={() => setShowGroups(!showGroups)}
+            >
+              <Text
+                style={[
+                  styles.selectText,
+                  !selectedGroup && styles.placeholderText,
+                ]}
+              >
+                {selectedGroup ? selectedGroup.name : "Selecione uma turma"}
+              </Text>
+
               <Ionicons
-                name="chevron-down"
+                name={showGroups ? "chevron-up" : "chevron-down"}
                 size={18}
                 color={COLORS.primaryBrown}
               />
             </TouchableOpacity>
 
-            <Text style={styles.helperText}>
-              Total de {GROUP_MOCK.totalStudents} alunos pré-cadastrados nesta
-              turma
-            </Text>
+            {showGroups && selectedSchool && (
+              <View style={styles.optionsContainer}>
+                {availableGroups.map((group) => (
+                  <TouchableOpacity
+                    key={group.id}
+                    style={styles.option}
+                    onPress={() => selectGroup(group)}
+                  >
+                    <Text style={styles.optionText}>{group.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {selectedGroup && (
+              <Text style={styles.helperText}>
+                {selectedGroup.totalStudents} alunos cadastrados nesta turma
+              </Text>
+            )}
 
             {/* REPRESENTANTE */}
-            <View style={styles.representativeCard}>
-              <Text style={styles.representativeHeader}>
-                <Ionicons name="person" size={15} color={COLORS.primaryBrown} />{" "}
-                Representante responsável
-              </Text>
+            {selectedGroup && (
+              <View style={styles.representativeCard}>
+                <Text style={styles.representativeTitle}>
+                  Representante responsável
+                </Text>
 
-              <Text style={styles.representativeName}>
-                {REPRESENTATIVE_MOCK.name}
-              </Text>
+                <Text style={styles.representativeName}>
+                  {REPRESENTATIVE.name}
+                </Text>
 
-              <Text style={styles.representativeText}>
-                {REPRESENTATIVE_MOCK.email}
-              </Text>
+                <View style={styles.representativeInfo}>
+                  <Ionicons name="mail" size={14} color={COLORS.primaryBrown} />
 
-              <Text style={styles.representativeText}>
-                {REPRESENTATIVE_MOCK.phone}
-              </Text>
-            </View>
+                  <Text style={styles.representativeText}>
+                    {REPRESENTATIVE.email}
+                  </Text>
+                </View>
+
+                <View style={styles.representativeInfo}>
+                  <Ionicons name="call" size={14} color={COLORS.primaryBrown} />
+
+                  <Text style={styles.representativeText}>
+                    {REPRESENTATIVE.phone}
+                  </Text>
+                </View>
+              </View>
+            )}
 
             {/* PARTICIPANTES */}
             <Text style={styles.label}>Participantes esperados *</Text>
 
-            <View
-              style={[
-                styles.participantsContainer,
-                notEnoughSpots && styles.inputError,
-              ]}
-            >
-              <Text style={styles.participantNumber}>{participants}</Text>
-
-              <View style={styles.counterButtons}>
-                <TouchableOpacity
-                  style={styles.counterButton}
-                  onPress={decreaseParticipants}
-                >
-                  <Text style={styles.counterButtonText}>−</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.counterButton}
-                  onPress={increaseParticipants}
-                >
-                  <Text style={styles.counterButtonText}>+</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
+            <TextInput
+              style={[styles.input, notEnoughSpots && styles.inputError]}
+              value={participants}
+              onChangeText={(value) =>
+                setParticipants(value.replace(/[^0-9]/g, ""))
+              }
+              placeholder="Digite a quantidade de participantes"
+              placeholderTextColor="#8C765E"
+              keyboardType="number-pad"
+            />
 
             {notEnoughSpots ? (
               <Text style={styles.errorText}>
@@ -366,7 +615,7 @@ export default function ReservationScreen() {
               </Text>
             ) : (
               <Text style={styles.helperText}>
-                {EVENT_MOCK.availableSpots} vagas disponíveis
+                {EVENT_DATA.availableSpots} vagas disponíveis
               </Text>
             )}
           </>
@@ -375,14 +624,15 @@ export default function ReservationScreen() {
         {/* OBSERVAÇÕES */}
         <View style={styles.notesHeader}>
           <Text style={styles.label}>Observações</Text>
+
           <Text style={styles.characterCounter}>{notes.length}/250</Text>
         </View>
 
         <TextInput
           style={styles.notesInput}
           value={notes}
-          onChangeText={(text) => setNotes(text.slice(0, 250))}
-          placeholder="Ex: Necessidade de rampa de acesso para aluno cadeirante..."
+          onChangeText={(value) => setNotes(value.slice(0, 250))}
+          placeholder="Informe alguma necessidade ou observação..."
           placeholderTextColor="#8C765E"
           multiline
           textAlignVertical="top"
@@ -394,34 +644,45 @@ export default function ReservationScreen() {
 
           <View style={styles.divider} />
 
-          <SummaryRow label="Evento" value={EVENT_MOCK.title} />
+          <SummaryRow label="Evento" value={EVENT_DATA.title} />
+
+          <SummaryRow label="Data" value={selectedScheduleData?.date ?? "-"} />
+
           <SummaryRow
-            label="Data e Horário"
-            value={`${EVENT_MOCK.date}, às ${EVENT_MOCK.time}`}
+            label="Horário"
+            value={selectedScheduleData?.details ?? "-"}
           />
 
-          {reservationType === "individual" ? (
+          {reservationType === "individual" && (
             <>
               <SummaryRow
                 label="Visitante"
-                value={`${firstName} ${lastName}`.trim()}
+                value={
+                  firstName || lastName
+                    ? `${firstName} ${lastName}`.trim()
+                    : "-"
+                }
               />
+
               <SummaryRow label="Participantes" value="1 pessoa" />
             </>
-          ) : (
+          )}
+
+          {reservationType === "group" && (
             <>
-              <SummaryRow label="Instituição" value={SCHOOL_MOCK.name} />
-              <SummaryRow label="Grupo/Turma" value={GROUP_MOCK.name} />
+              <SummaryRow label="Escola" value={selectedSchool?.name ?? "-"} />
+
+              <SummaryRow label="Turma" value={selectedGroup?.name ?? "-"} />
+
               <SummaryRow
                 label="Participantes"
-                value={`${participants} pessoas${
-                  notEnoughSpots ? " (indisponível)" : ""
-                }`}
+                value={participants ? `${participants} pessoas` : "-"}
               />
             </>
           )}
         </View>
 
+        {/* ERRO DO FORMULÁRIO */}
         {formError !== "" && <Text style={styles.formError}>{formError}</Text>}
 
         {/* BOTÃO */}
@@ -432,7 +693,6 @@ export default function ReservationScreen() {
           ]}
           disabled={notEnoughSpots}
           onPress={handleSubmit}
-          activeOpacity={0.85}
         >
           <Text style={styles.submitButtonText}>
             {reservationType === "group"
@@ -442,6 +702,7 @@ export default function ReservationScreen() {
         </TouchableOpacity>
       </ScrollView>
 
+      {/* MENU */}
       <MenuModal
         visible={isMenuVisible}
         onClose={() => setIsMenuVisible(false)}
@@ -450,6 +711,9 @@ export default function ReservationScreen() {
   );
 }
 
+/*
+  Linha do resumo
+*/
 interface SummaryRowProps {
   label: string;
   value: string;
@@ -458,7 +722,8 @@ interface SummaryRowProps {
 function SummaryRow({ label, value }: SummaryRowProps) {
   return (
     <View style={styles.summaryRow}>
-      <Text style={styles.summaryLabel}>{label}:</Text>
+      <Text style={styles.summaryLabel}>{label}</Text>
+
       <Text style={styles.summaryValue}>{value}</Text>
     </View>
   );
@@ -470,12 +735,15 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primaryBrown,
   },
 
+  /*
+    HEADER
+  */
   header: {
     backgroundColor: COLORS.primaryBrown,
     paddingTop: 16,
-    paddingBottom: 20,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    paddingBottom: 24,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
   },
 
   headerTop: {
@@ -500,13 +768,16 @@ const styles = StyleSheet.create({
   },
 
   pageSubtitle: {
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: "bold",
     color: COLORS.secondaryBeige,
     marginTop: 4,
     letterSpacing: 2,
   },
 
+  /*
+    CONTEÚDO
+  */
   content: {
     flex: 1,
     backgroundColor: COLORS.secondaryBeige,
@@ -520,37 +791,40 @@ const styles = StyleSheet.create({
   pageTitle: {
     fontSize: 24,
     fontWeight: "bold",
-    color: COLORS.primaryBrown,
+    color: COLORS.textDark,
   },
 
   pageDescription: {
     fontSize: 13,
     color: COLORS.textDark,
-    marginTop: 4,
-    marginBottom: 18,
-    opacity: 0.75,
+    opacity: 0.7,
+    marginTop: 5,
+    marginBottom: 20,
   },
 
+  /*
+    EVENTO
+  */
   eventCard: {
     backgroundColor: COLORS.primaryBrown,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 14,
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 20,
   },
 
-  badge: {
+  eventBadge: {
     alignSelf: "flex-start",
     backgroundColor: COLORS.yellowIcon,
+    borderRadius: 5,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 4,
-    marginBottom: 8,
+    marginBottom: 10,
   },
 
-  badgeText: {
+  eventBadgeText: {
     fontSize: 9,
     fontWeight: "bold",
-    color: COLORS.primaryBrown,
+    color: COLORS.textDark,
   },
 
   eventTitle: {
@@ -563,8 +837,8 @@ const styles = StyleSheet.create({
   eventInfo: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    marginBottom: 4,
+    gap: 7,
+    marginBottom: 6,
   },
 
   eventInfoText: {
@@ -576,22 +850,74 @@ const styles = StyleSheet.create({
     color: COLORS.yellowIcon,
     fontSize: 11,
     fontWeight: "bold",
-    marginTop: 6,
+    marginTop: 8,
   },
 
+  /*
+    TÍTULOS
+  */
+  sectionTitle: {
+    color: COLORS.textDark,
+    fontWeight: "bold",
+    fontSize: 14,
+    marginBottom: 8,
+  },
+
+  /*
+    DATA / HORÁRIO
+  */
+  scheduleContainer: {
+    gap: 8,
+    marginBottom: 20,
+  },
+
+  scheduleOption: {
+    borderWidth: 1,
+    borderColor: "#C8B991",
+    borderRadius: 10,
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  scheduleOptionSelected: {
+    backgroundColor: COLORS.primaryBrown,
+    borderColor: COLORS.primaryBrown,
+  },
+
+  scheduleDate: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: COLORS.textDark,
+  },
+
+  scheduleDetails: {
+    marginTop: 3,
+    fontSize: 12,
+    color: COLORS.textDark,
+  },
+
+  scheduleTextSelected: {
+    color: COLORS.secondaryBeige,
+  },
+
+  /*
+    TIPO DE RESERVA
+  */
   typeSelector: {
     flexDirection: "row",
     backgroundColor: "#DED69A",
-    borderRadius: 8,
-    padding: 3,
-    marginBottom: 16,
+    borderRadius: 9,
+    padding: 4,
+    marginBottom: 15,
   },
 
   typeButton: {
     flex: 1,
     alignItems: "center",
-    paddingVertical: 9,
-    borderRadius: 6,
+    paddingVertical: 10,
+    borderRadius: 7,
   },
 
   typeButtonActive: {
@@ -608,121 +934,128 @@ const styles = StyleSheet.create({
     color: COLORS.yellowIcon,
   },
 
+  /*
+    INPUTS
+  */
   label: {
-    color: COLORS.primaryBrown,
+    color: COLORS.textDark,
     fontSize: 12,
     fontWeight: "bold",
-    marginBottom: 5,
-    marginTop: 8,
+    marginTop: 10,
+    marginBottom: 6,
   },
 
   input: {
     borderWidth: 1,
-    borderColor: "#D5C79C",
+    borderColor: "#C8B991",
     backgroundColor: COLORS.secondaryBeige,
-    borderRadius: 7,
+    borderRadius: 8,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 11,
     color: COLORS.textDark,
     fontSize: 13,
   },
 
-  selectInput: {
+  placeholderText: {
+    color: "#8C765E",
+  },
+
+  /*
+    SELECTS
+  */
+  select: {
     borderWidth: 1,
-    borderColor: "#D5C79C",
-    borderRadius: 7,
+    borderColor: "#C8B991",
+    borderRadius: 8,
     paddingHorizontal: 12,
-    paddingVertical: 11,
+    paddingVertical: 12,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
 
+  selectDisabled: {
+    opacity: 0.5,
+  },
+
   selectText: {
     flex: 1,
+    fontSize: 12,
+    color: COLORS.textDark,
+  },
+
+  optionsContainer: {
+    borderWidth: 1,
+    borderColor: "#C8B991",
+    borderRadius: 8,
+    marginTop: 4,
+    overflow: "hidden",
+  },
+
+  option: {
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#DDD2AE",
+  },
+
+  optionText: {
     color: COLORS.textDark,
     fontSize: 12,
   },
 
   helperText: {
-    fontSize: 10,
     color: COLORS.textDark,
     opacity: 0.65,
-    marginTop: 4,
+    fontSize: 10,
+    marginTop: 5,
   },
 
-  addSchoolText: {
+  addSchool: {
     color: COLORS.primaryBrown,
     fontSize: 11,
     fontWeight: "bold",
-    marginTop: 7,
-    marginBottom: 5,
+    marginTop: 8,
   },
 
+  /*
+    REPRESENTANTE
+  */
   representativeCard: {
     backgroundColor: "#DED69A",
-    borderRadius: 8,
-    padding: 12,
-    marginTop: 12,
-    marginBottom: 10,
+    borderRadius: 10,
+    padding: 13,
+    marginTop: 15,
   },
 
-  representativeHeader: {
-    color: COLORS.primaryBrown,
+  representativeTitle: {
     fontSize: 11,
     fontWeight: "bold",
+    color: COLORS.primaryBrown,
     marginBottom: 7,
   },
 
   representativeName: {
-    color: COLORS.primaryBrown,
     fontSize: 12,
     fontWeight: "bold",
+    color: COLORS.textDark,
+    marginBottom: 5,
+  },
+
+  representativeInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 3,
   },
 
   representativeText: {
-    color: COLORS.textDark,
     fontSize: 10,
-    marginTop: 2,
-  },
-
-  participantsContainer: {
-    borderWidth: 1,
-    borderColor: "#D5C79C",
-    borderRadius: 7,
-    paddingLeft: 12,
-    paddingRight: 6,
-    paddingVertical: 5,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-
-  participantNumber: {
     color: COLORS.textDark,
-    fontSize: 14,
   },
 
-  counterButtons: {
-    flexDirection: "row",
-    gap: 6,
-  },
-
-  counterButton: {
-    width: 28,
-    height: 28,
-    backgroundColor: "#DED69A",
-    borderRadius: 5,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  counterButtonText: {
-    color: COLORS.primaryBrown,
-    fontWeight: "bold",
-    fontSize: 18,
-  },
-
+  /*
+    ERROS
+  */
   inputError: {
     borderColor: "#B3261E",
     borderWidth: 2,
@@ -734,92 +1067,93 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
 
+  /*
+    OBSERVAÇÕES
+  */
   notesHeader: {
     flexDirection: "row",
-    alignItems: "flex-end",
     justifyContent: "space-between",
+    alignItems: "flex-end",
     marginTop: 4,
   },
 
   characterCounter: {
-    fontSize: 9,
     color: COLORS.textDark,
-    opacity: 0.6,
-    marginBottom: 5,
+    opacity: 0.5,
+    fontSize: 9,
+    marginBottom: 6,
   },
 
   notesInput: {
-    minHeight: 85,
     borderWidth: 1,
-    borderColor: "#D5C79C",
-    borderRadius: 7,
-    padding: 10,
+    borderColor: "#C8B991",
+    borderRadius: 8,
+    minHeight: 90,
+    padding: 12,
     color: COLORS.textDark,
     fontSize: 12,
   },
 
+  /*
+    RESUMO
+  */
   summaryCard: {
     borderWidth: 1,
-    borderColor: "#D5C79C",
+    borderColor: "#C8B991",
     borderRadius: 12,
-    padding: 14,
-    marginTop: 16,
+    padding: 15,
+    marginTop: 20,
   },
 
   summaryTitle: {
-    color: COLORS.primaryBrown,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "bold",
+    color: COLORS.primaryBrown,
   },
 
   divider: {
     height: 1,
-    backgroundColor: "#D5C79C",
-    marginVertical: 10,
+    backgroundColor: "#C8B991",
+    marginVertical: 12,
   },
 
   summaryRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    gap: 15,
-    marginBottom: 8,
+    gap: 20,
+    marginBottom: 9,
   },
 
   summaryLabel: {
+    fontSize: 11,
     color: COLORS.textDark,
-    fontSize: 10,
-    opacity: 0.75,
+    opacity: 0.7,
   },
 
   summaryValue: {
     flex: 1,
     textAlign: "right",
-    color: COLORS.primaryBrown,
-    fontSize: 10,
+    fontSize: 11,
+    color: COLORS.textDark,
+    fontWeight: "600",
   },
 
   formError: {
     color: "#B3261E",
     fontSize: 11,
     fontWeight: "600",
-    marginTop: 10,
+    marginTop: 12,
   },
 
+  /*
+    BOTÃO
+  */
   submitButton: {
     backgroundColor: COLORS.primaryBrown,
-    borderRadius: 8,
+    borderRadius: 10,
     alignItems: "center",
-    paddingVertical: 14,
-    marginTop: 14,
-
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 3,
+    paddingVertical: 15,
+    marginTop: 16,
   },
 
   submitButtonDisabled: {
@@ -828,7 +1162,7 @@ const styles = StyleSheet.create({
 
   submitButtonText: {
     color: COLORS.yellowIcon,
-    fontWeight: "bold",
     fontSize: 13,
+    fontWeight: "bold",
   },
 });
