@@ -105,7 +105,15 @@ export default function EventDetailsScreen() {
             {EVENT_DETAIL_MOCK.description2}
           </Text>
 
-          <TouchableOpacity style={styles.subscribeButton}>
+          <TouchableOpacity
+            style={styles.subscribeButton}
+            onPress={() =>
+              router.push({
+                pathname: "/event/[id]/reservation",
+                params: { id: String(id) },
+              })
+            }
+          >
             <Text style={styles.subscribeButtonText}>INSCREVA-SE</Text>
           </TouchableOpacity>
         </View>
