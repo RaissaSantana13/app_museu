@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MenuModal } from "../../components/MenuModal";
-import { SearchBar } from "../../components/SearchBar";
+//import { SearchBar } from "../../components/SearchBar"; 67 <SearchBar />
 import { COLORS } from "../../constants/theme";
 
 // Dados estáticos para renderização visual
@@ -64,7 +64,6 @@ export default function EventDetailsScreen() {
               />
             </TouchableOpacity>
           </View>
-          <SearchBar />
         </View>
 
         {/* Conteúdo do Evento */}
