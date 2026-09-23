@@ -10,6 +10,23 @@ export interface ObraDetalhes {
   material?: string;
 }
 
+export interface EventoDetalhes {
+  id: string;
+  title: string;
+  startDate: string;
+  endDate: string;
+  imageSource: any;
+  isSoldOut?: boolean;
+}
+
+export interface ExposicaoDetalhes {
+  id: string;
+  title: string;
+  startDate: string;
+  endDate: string;
+  imageSource: any;
+}
+
 export const ARTWORKS_DATA: ObraDetalhes[] = [
   {
     id: "550e8400-e29b-41d4-a716-446655440000",
@@ -90,5 +107,41 @@ export const ARTWORKS_DATA: ObraDetalhes[] = [
     year: "1901-2000",
     artist: "Artesão Indígena Desconhecido",
     material: "Argila cozida",
+  },
+];
+
+export const EVENTS_DATA: EventoDetalhes[] = [
+  {
+    id: "1",
+    title: "O solo vira arte",
+    startDate: "24 maio 26",
+    endDate: "3 junho 26",
+    imageSource: require("../assets/images/react-logo.png"), // Corrigido de ../../ para ../
+    isSoldOut: true,
+  },
+  {
+    id: "2",
+    title: "Sons do Passado",
+    startDate: "28 maio 26",
+    endDate: "10 junho 26",
+    imageSource: require("../assets/images/react-logo.png"), // Corrigido de ../../ para ../
+    isSoldOut: false,
+  },
+];
+
+export const EXHIBITIONS_DATA: ExposicaoDetalhes[] = [
+  {
+    id: "1",
+    title: "O solo vira arte",
+    startDate: "24 maio 26",
+    endDate: "3 junho 26",
+    imageSource: require("../assets/images/react-logo.png"), // Corrigido de ../../ para ../
+  },
+  {
+    id: "2",
+    title: "Mundo em Cores",
+    startDate: "24 maio 26",
+    endDate: "3 junho 26",
+    imageSource: require("../assets/images/react-logo.png"), // Corrigido de ../../ para ../
   },
 ];

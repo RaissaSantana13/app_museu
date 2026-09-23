@@ -1,4 +1,4 @@
-import { ARTWORKS_DATA } from "@/constants/data";
+import { ARTWORKS_DATA, EVENTS_DATA, EXHIBITIONS_DATA } from "@/constants/data";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useState } from "react";
 import {
@@ -16,42 +16,6 @@ import { ExhibitionCard } from "../../components/ExhibitionCard";
 import { MenuModal } from "../../components/MenuModal"; // Importação do Modal
 import { SearchBar } from "../../components/SearchBar";
 import { COLORS } from "../../constants/theme";
-
-const EVENTS_DATA = [
-  {
-    id: "1",
-    title: "O solo vira arte",
-    startDate: "24 maio 26",
-    endDate: "3 junho 26",
-    imageSource: require("../../assets/images/react-logo.png"),
-    isSoldOut: true,
-  },
-  {
-    id: "2",
-    title: "Sons do Passado",
-    startDate: "28 maio 26",
-    endDate: "10 junho 26",
-    imageSource: require("../../assets/images/react-logo.png"),
-    isSoldOut: false,
-  },
-];
-
-const EXHIBITIONS_DATA = [
-  {
-    id: "1",
-    title: "O solo vira arte",
-    startDate: "24 maio 26",
-    endDate: "3 junho 26",
-    imageSource: require("../../assets/images/react-logo.png"),
-  },
-  {
-    id: "2",
-    title: "Mundo em Cores",
-    startDate: "24 maio 26",
-    endDate: "3 junho 26",
-    imageSource: require("../../assets/images/react-logo.png"),
-  },
-];
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -165,9 +129,15 @@ const styles = StyleSheet.create({
   headerTitleHighlight: { color: COLORS.yellowIcon },
   eventsWrapper: {
     backgroundColor: COLORS.secondaryBeige,
-    borderRadius: 30,
-    paddingVertical: 24,
-    marginBottom: 8,
+    borderRadius: 24,
+    paddingVertical: 20,
+    marginHorizontal: 16,
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   sectionTitleDark: {
     fontSize: 20,
