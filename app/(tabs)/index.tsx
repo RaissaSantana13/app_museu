@@ -1,3 +1,4 @@
+import { ARTWORKS_DATA } from "@/constants/data";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useState } from "react";
 import {
@@ -48,30 +49,6 @@ const EXHIBITIONS_DATA = [
     title: "Mundo em Cores",
     startDate: "24 maio 26",
     endDate: "3 junho 26",
-    imageSource: require("../../assets/images/react-logo.png"),
-  },
-];
-
-const ARTWORKS_DATA = [
-  {
-    id: "1",
-    title: "Crepúsculo de Prata",
-    artist: "Lívia Sampaio",
-    year: "2021",
-    imageSource: require("../../assets/images/react-logo.png"),
-  },
-  {
-    id: "2",
-    title: "Formas do Vento",
-    artist: "Marcos Toledo",
-    year: "1998",
-    imageSource: require("../../assets/images/react-logo.png"),
-  },
-  {
-    id: "3",
-    title: "O Grito Urbano",
-    artist: "Ana Clara",
-    year: "2024",
     imageSource: require("../../assets/images/react-logo.png"),
   },
 ];
@@ -185,7 +162,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   headerTitle: { fontSize: 20, fontWeight: "900", color: "#000" },
-  headerTitleHighlight: { color: COLORS.accentGreen },
+  headerTitleHighlight: { color: COLORS.yellowIcon },
   eventsWrapper: {
     backgroundColor: COLORS.secondaryBeige,
     borderRadius: 30,
