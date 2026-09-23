@@ -109,7 +109,7 @@ export default function HomeScreen() {
           <FlatList
             data={ARTWORKS_DATA}
             keyExtractor={(item) => item.id}
-            renderItem={({ item }) => <ArtworkCard {...item} />}
+            renderItem={({ item }) => <ArtworkCard artwork={item} />}
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.flatListContent}

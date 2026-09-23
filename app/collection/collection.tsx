@@ -81,14 +81,7 @@ export default function CollectionScreen() {
           <FlatList
             data={filteredArtworks}
             keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <CollectionCard
-                artwork={item}
-                onPress={() =>
-                  console.log(`Abrir detalhes da obra: ${item.id}`)
-                }
-              />
-            )}
+            renderItem={({ item }) => <CollectionCard artwork={item} />}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={

@@ -1,44 +1,53 @@
+import { Href, Link } from "expo-router";
 import React from "react";
-import { Image, StyleSheet, Text, View } from "react-native";
+import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ObraDetalhes } from "../constants/data"; // Certifique-se de importar o tipo correto se ele estiver lá
 import { COLORS } from "../constants/theme";
 
 interface ArtworkCardProps {
-  title: string;
-  artist?: string;
-  year?: string;
-  img: any;
+  artwork: ObraDetalhes; // Recebe o objeto completo da obra, igual ao CollectionCard
 }
 
-export function ArtworkCard({ title, artist, year, img }: ArtworkCardProps) {
+export function ArtworkCard({ artwork }: ArtworkCardProps) {
   return (
-    <View style={styles.card}>
-      {/* Caixa exclusiva para a imagem no topo */}
-      <View style={styles.imageContainer}>
-        {/* 'contain' garante que a obra inteira cabe sem cortes */}
-        <Image source={img} style={styles.image} resizeMode="contain" />
-      </View>
+    <Link
+      href={
+        { pathname: "/artwork/[id]", params: { id: artwork.id } } as Href<any>
+      }
+      asChild
+    >
+      <TouchableOpacity style={styles.card} activeOpacity={0.9}>
+        {/* Caixa exclusiva para a imagem no topo */}
+        <View style={styles.imageContainer}>
+          <Image
+            source={artwork.img}
+            style={styles.image}
+            resizeMode="contain"
+          />
+        </View>
 
-      {/* Caixa de informações na parte inferior */}
-      <View style={styles.info}>
-        <Text style={styles.title} numberOfLines={1}>
-          {title}
-        </Text>
-
-        {artist && (
-          <Text style={styles.subtitle} numberOfLines={1}>
-            <Text style={styles.bold}>Artista: </Text>
-            {artist}
+        {/* Caixa de informações na parte inferior */}
+        <View style={styles.info}>
+          <Text style={styles.title} numberOfLines={1}>
+            {artwork.title}
           </Text>
-        )}
 
-        {year && (
-          <Text style={styles.subtitle} numberOfLines={1}>
-            <Text style={styles.bold}>Ano: </Text>
-            {year}
-          </Text>
-        )}
-      </View>
-    </View>
+          {artwork.artist && (
+            <Text style={styles.subtitle} numberOfLines={1}>
+              <Text style={styles.bold}>Artista: </Text>
+              {artwork.artist}
+            </Text>
+          )}
+
+          {artwork.year && (
+            <Text style={styles.subtitle} numberOfLines={1}>
+              <Text style={styles.bold}>Ano: </Text>
+              {artwork.year}
+            </Text>
+          )}
+        </View>
+      </TouchableOpacity>
+    </Link>
   );
 }
 
@@ -52,8 +61,8 @@ const styles = StyleSheet.create({
   },
   imageContainer: {
     width: "100%",
-    height: 150, // Altura fixa para a imagem não empurrar os textos
-    backgroundColor: COLORS.secondaryBeige, // Os espaços vazios fundem-se com o cartão
+    height: 150,
+    backgroundColor: COLORS.secondaryBeige,
     paddingTop: 10,
     paddingHorizontal: 10,
   },
