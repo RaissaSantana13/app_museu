@@ -2,18 +2,17 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MenuModal } from "../../components/MenuModal";
 import { SearchBar } from "../../components/SearchBar";
 import { COLORS } from "../../constants/theme";
-
 
 // Dados estáticos para renderização visual
 const EVENT_DETAIL_MOCK = {
@@ -140,7 +139,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   headerTitle: { fontSize: 20, fontWeight: "900", color: "#000" },
-  headerTitleHighlight: { color: COLORS.accentGreen },
+  headerTitleHighlight: { color: COLORS.yellowIcon },
 
   // Content Styles
   contentWrapper: { padding: 20 },
@@ -152,7 +151,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   statusBadge: {
-    backgroundColor: COLORS.accentGreen,
+    backgroundColor: COLORS.yellowIcon,
     alignSelf: "flex-start",
     paddingHorizontal: 12,
     paddingVertical: 6,

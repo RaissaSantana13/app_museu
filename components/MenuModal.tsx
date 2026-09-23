@@ -1,12 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import React from "react";
 import {
-    Modal,
-    SafeAreaView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Modal,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { COLORS } from "../constants/theme";
 
@@ -16,6 +17,7 @@ interface MenuModalProps {
 }
 
 export function MenuModal({ visible, onClose }: MenuModalProps) {
+  const router = useRouter();
   return (
     <Modal
       animationType="fade"
@@ -30,7 +32,13 @@ export function MenuModal({ visible, onClose }: MenuModalProps) {
           </TouchableOpacity>
 
           <View style={styles.menuItems}>
-            <TouchableOpacity style={styles.menuItem}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                onClose();
+                router.push("/collection/collection");
+              }}
+            >
               <Text style={styles.menuText}>Acervo</Text>
             </TouchableOpacity>
 
