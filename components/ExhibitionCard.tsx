@@ -1,28 +1,52 @@
+import { Href, Link } from "expo-router";
 import React from "react";
-import { Image, StyleSheet, Text, View } from "react-native";
+import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { COLORS } from "../constants/theme";
 
-export function ExhibitionCard({
-  title,
-  startDate,
-  endDate,
-  imageSource,
-}: any) {
+// Tipagem baseada no que virá da sua API/Mock
+export interface ExhibitionDetails {
+  id: string;
+  title: string;
+  startDate: string;
+  endDate: string;
+  imageSource: any;
+}
+
+interface ExhibitionCardProps {
+  exhibition: ExhibitionDetails;
+}
+
+export function ExhibitionCard({ exhibition }: ExhibitionCardProps) {
   return (
-    <View style={styles.card}>
-      <Image source={imageSource} style={styles.image} />
-      <View style={styles.info}>
-        <Text style={styles.title}>{title}</Text>
-        <Text style={styles.date}>
-          <Text style={styles.bold}>Início | </Text>
-          {startDate}
-        </Text>
-        <Text style={styles.date}>
-          <Text style={styles.bold}>Término | </Text>
-          {endDate}
-        </Text>
-      </View>
-    </View>
+    <Link
+      href={
+        {
+          pathname: "/exhibition/[id]",
+          params: { id: exhibition.id },
+        } as Href<any>
+      }
+      asChild
+    >
+      <TouchableOpacity style={styles.card} activeOpacity={0.9}>
+        <Image source={exhibition.imageSource} style={styles.image} />
+
+        <View style={styles.info}>
+          <Text style={styles.title} numberOfLines={1}>
+            {exhibition.title}
+          </Text>
+
+          <Text style={styles.date} numberOfLines={1}>
+            <Text style={styles.bold}>Início | </Text>
+            {exhibition.startDate}
+          </Text>
+
+          <Text style={styles.date} numberOfLines={1}>
+            <Text style={styles.bold}>Término | </Text>
+            {exhibition.endDate}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    </Link>
   );
 }
 
@@ -34,7 +58,11 @@ const styles = StyleSheet.create({
     width: 180,
     overflow: "hidden",
   },
-  image: { width: "100%", aspectRatio: 1, resizeMode: "cover" },
+  image: {
+    width: "100%",
+    aspectRatio: 1,
+    resizeMode: "cover",
+  },
   info: { padding: 12 },
   title: {
     color: COLORS.textDark,
@@ -42,6 +70,10 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 8,
   },
-  date: { color: COLORS.textDark, fontSize: 12, marginBottom: 2 },
+  date: {
+    color: COLORS.textDark,
+    fontSize: 12,
+    marginBottom: 2,
+  },
   bold: { fontWeight: "bold" },
 });
