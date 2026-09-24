@@ -27,6 +27,27 @@ export interface ExposicaoDetalhes {
   imageSource: any;
 }
 
+export interface EscolaDetalhes {
+  id: string;
+  name: string;
+  cnpj: string;
+}
+
+export interface TurmaDetalhes {
+  id: string;
+  schoolId: string;
+  representativeId: string;
+  name: string;
+  totalStudents: number;
+}
+
+export interface RepresentanteDetalhes {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+}
+
 export const ARTWORKS_DATA: ObraDetalhes[] = [
   {
     id: "550e8400-e29b-41d4-a716-446655440000",
@@ -143,5 +164,63 @@ export const EXHIBITIONS_DATA: ExposicaoDetalhes[] = [
     startDate: "24 maio 26",
     endDate: "3 junho 26",
     imageSource: require("../assets/images/react-logo.png"), // Corrigido de ../../ para ../
+  },
+];
+
+export const SCHOOLS_DATA: EscolaDetalhes[] = [
+  {
+    id: "1",
+    name: "E.E. Prof. Stélio Machado Loureiro",
+    cnpj: "46.123.456/0001-89",
+  },
+  {
+    id: "2",
+    name: "E.E. Dr. Carlos Carvalho Rosa",
+    cnpj: "12.345.678/0001-90",
+  },
+];
+
+export const GROUPS_DATA: TurmaDetalhes[] = [
+  {
+    id: "1",
+    schoolId: "1",
+    representativeId: "1",
+    name: "9º Ano B",
+    totalStudents: 32,
+  },
+  {
+    id: "2",
+    schoolId: "1",
+    representativeId: "2",
+    name: "8º Ano A",
+    totalStudents: 28,
+  },
+  {
+    id: "3",
+    schoolId: "2",
+    representativeId: "3",
+    name: "3º Ano A",
+    totalStudents: 25,
+  },
+];
+
+export const REPRESENTATIVES_DATA: RepresentanteDetalhes[] = [
+  {
+    id: "1",
+    name: "Mariana Souza Silva",
+    email: "mariana@educacao.sp.gov.br",
+    phone: "(18) 99123-4567",
+  },
+  {
+    id: "2",
+    name: "Carlos Oliveira Santos",
+    email: "carlos@example.com",
+    phone: "(18) 99234-5678",
+  },
+  {
+    id: "3",
+    name: "Ana Paula Costa",
+    email: "ana@example.com",
+    phone: "(18) 99345-6789",
   },
 ];
