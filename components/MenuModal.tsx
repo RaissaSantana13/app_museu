@@ -60,7 +60,13 @@ export function MenuModal({ visible, onClose }: MenuModalProps) {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={styles.loginButton}>
+          <TouchableOpacity
+            style={styles.loginButton}
+            onPress={() => {
+              onClose();
+              router.push("/login");
+            }}
+          >
             <Ionicons
               name="log-in-outline"
               size={24}
