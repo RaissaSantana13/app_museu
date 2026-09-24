@@ -12,22 +12,16 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { MenuModal } from "../../../components/MenuModal";
+import {
+  GROUPS_DATA,
+  REPRESENTATIVES_DATA,
+  SCHOOLS_DATA,
+  type EscolaDetalhes,
+  type TurmaDetalhes,
+} from "../../../constants/data";
 import { COLORS } from "../../../constants/theme";
 
 type ReservationType = "individual" | "group";
-
-interface School {
-  id: string;
-  name: string;
-  cnpj: string;
-}
-
-interface SchoolGroup {
-  id: string;
-  schoolId: string;
-  name: string;
-  totalStudents: number;
-}
 
 interface Schedule {
   id: string;
@@ -66,49 +60,6 @@ const EVENT_DATA = {
   ] as Schedule[],
 };
 
-const SCHOOLS: School[] = [
-  {
-    id: "1",
-    name: "E.E. Prof. Stélio Machado Loureiro",
-    cnpj: "46.123.456/0001-89",
-  },
-  {
-    id: "2",
-    name: "E.E. Dr. Carlos Carvalho Rosa",
-    cnpj: "12.345.678/0001-90",
-  },
-];
-
-const GROUPS: SchoolGroup[] = [
-  {
-    id: "1",
-    schoolId: "1",
-    name: "9º Ano B",
-    totalStudents: 32,
-  },
-  {
-    id: "2",
-    schoolId: "1",
-    name: "8º Ano A",
-    totalStudents: 28,
-  },
-  {
-    id: "3",
-    schoolId: "2",
-    name: "3º Ano A",
-    totalStudents: 25,
-  },
-];
-
-/*
-  Também temporário enquanto não há API/autenticação integrada.
-*/
-const REPRESENTATIVE = {
-  name: "Mariana Souza Silva",
-  email: "mariana@educacao.sp.gov.br",
-  phone: "(18) 99123-4567",
-};
-
 export default function ReservationScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
@@ -135,9 +86,9 @@ export default function ReservationScreen() {
   /*
     Grupo escolar
   */
-  const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
+  const [selectedSchool, setSelectedSchool] = useState<EscolaDetalhes | null>(null);
 
-  const [selectedGroup, setSelectedGroup] = useState<SchoolGroup | null>(null);
+  const [selectedGroup, setSelectedGroup] = useState<TurmaDetalhes | null>(null);
 
   const [showSchools, setShowSchools] = useState(false);
   const [showGroups, setShowGroups] = useState(false);
@@ -156,8 +107,12 @@ export default function ReservationScreen() {
     (schedule) => schedule.id === selectedSchedule,
   );
 
-  const availableGroups = GROUPS.filter(
+  const availableGroups = GROUPS_DATA.filter(
     (group) => group.schoolId === selectedSchool?.id,
+  );
+
+  const selectedRepresentative = REPRESENTATIVES_DATA.find(
+    (representative) => representative.id === selectedGroup?.representativeId,
   );
 
   const notEnoughSpots =
@@ -170,7 +125,7 @@ export default function ReservationScreen() {
     setFormError("");
   }
 
-  function selectSchool(school: School) {
+  function selectSchool(school: EscolaDetalhes) {
     setSelectedSchool(school);
 
     // Se trocar de escola, remove a turma selecionada anteriormente.
@@ -180,7 +135,7 @@ export default function ReservationScreen() {
     setShowGroups(false);
   }
 
-  function selectGroup(group: SchoolGroup) {
+  function selectGroup(group: TurmaDetalhes) {
     setSelectedGroup(group);
     setShowGroups(false);
   }
@@ -503,7 +458,7 @@ export default function ReservationScreen() {
 
             {showSchools && (
               <View style={styles.optionsContainer}>
-                {SCHOOLS.map((school) => (
+                {SCHOOLS_DATA.map((school) => (
                   <TouchableOpacity
                     key={school.id}
                     style={styles.option}
@@ -567,21 +522,21 @@ export default function ReservationScreen() {
             )}
 
             {/* REPRESENTANTE */}
-            {selectedGroup && (
+            {selectedRepresentative && (
               <View style={styles.representativeCard}>
                 <Text style={styles.representativeTitle}>
                   Representante responsável
                 </Text>
 
                 <Text style={styles.representativeName}>
-                  {REPRESENTATIVE.name}
+                  {selectedRepresentative.name}
                 </Text>
 
                 <View style={styles.representativeInfo}>
                   <Ionicons name="mail" size={14} color={COLORS.primaryBrown} />
 
                   <Text style={styles.representativeText}>
-                    {REPRESENTATIVE.email}
+                    {selectedRepresentative.email}
                   </Text>
                 </View>
 
@@ -589,7 +544,7 @@ export default function ReservationScreen() {
                   <Ionicons name="call" size={14} color={COLORS.primaryBrown} />
 
                   <Text style={styles.representativeText}>
-                    {REPRESENTATIVE.phone}
+                    {selectedRepresentative.phone}
                   </Text>
                 </View>
               </View>
