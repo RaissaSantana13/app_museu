@@ -3,13 +3,17 @@ import React from "react";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { COLORS } from "../constants/theme";
 
-// Tipagem baseada no que virá da sua API/Mock
 export interface ExhibitionDetails {
   id: string;
   title: string;
   startDate: string;
   endDate: string;
   imageSource: any;
+  status?: string;
+  tags?: string[];
+  description1?: string;
+  description2?: string;
+  schedules?: { date: string; details: string }[];
 }
 
 interface ExhibitionCardProps {
@@ -21,7 +25,7 @@ export function ExhibitionCard({ exhibition }: ExhibitionCardProps) {
     <Link
       href={
         {
-          pathname: "/exhibition/[id]",
+          pathname: "/exibition/[id]",
           params: { id: exhibition.id },
         } as Href<any>
       }

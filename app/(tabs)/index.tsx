@@ -13,13 +13,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ArtworkCard } from "../../components/ArtworkCard";
 import { EventCard } from "../../components/EventCard";
 import { ExhibitionCard } from "../../components/ExhibitionCard";
-import { MenuModal } from "../../components/MenuModal"; // Importação do Modal
+import { MenuModal } from "../../components/MenuModal";
 import { SearchBar } from "../../components/SearchBar";
 import { COLORS } from "../../constants/theme";
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const [isMenuVisible, setIsMenuVisible] = useState(false); // Controle de estado do Modal
+  const [isMenuVisible, setIsMenuVisible] = useState(false);
 
   return (
     <View
@@ -31,7 +31,6 @@ export default function HomeScreen() {
       <ScrollView style={styles.container} bounces={false}>
         <View style={styles.header}>
           <View style={styles.headerTop}>
-            {/* Ícone de menu envolto em TouchableOpacity */}
             <TouchableOpacity onPress={() => setIsMenuVisible(true)}>
               <Ionicons name="menu" size={32} color={COLORS.secondaryBeige} />
             </TouchableOpacity>
@@ -61,7 +60,8 @@ export default function HomeScreen() {
           <FlatList
             data={EXHIBITIONS_DATA}
             keyExtractor={(item) => item.id}
-            renderItem={({ item }) => <ExhibitionCard {...item} />}
+            // CORREÇÃO APLICADA AQUI:
+            renderItem={({ item }) => <ExhibitionCard exhibition={item} />}
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.flatListContent}
@@ -102,7 +102,6 @@ export default function HomeScreen() {
         </View>
       </ScrollView>
 
-      {/* Renderização do Modal */}
       <MenuModal
         visible={isMenuVisible}
         onClose={() => setIsMenuVisible(false)}

@@ -2,12 +2,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -18,6 +18,8 @@ const EXHIBITIONS_DATA = [
   {
     id: "1",
     title: "A Magia das Cores Antigas",
+    startDate: "10/05", // Adicionado para manter compatibilidade
+    endDate: "30/06", // Adicionado para manter compatibilidade
     status: "EM CARTAZ",
     tags: ["PINTURA", "GRATUITO", "LIVRE"],
     description1:
@@ -28,7 +30,7 @@ const EXHIBITIONS_DATA = [
       { date: "10/05 a 30/06", details: "Terça a Domingo, 10h às 18h" },
       { date: "Feriados", details: "10h às 14h" },
     ],
-    imageSource: require("../../assets/images/react-logo.png"), // Ajuste o caminho depois
+    imageSource: require("../../assets/images/react-logo.png"),
   },
 ];
 
@@ -38,7 +40,6 @@ export default function ExhibitionDetailsScreen() {
   const insets = useSafeAreaInsets();
   const [isMenuVisible, setIsMenuVisible] = useState(false);
 
-  // Busca o ID na API/Mock
   const exhibitionId = Array.isArray(id) ? id[0] : id;
   const exhibition = EXHIBITIONS_DATA.find((item) => item.id === exhibitionId);
 
@@ -46,7 +47,7 @@ export default function ExhibitionDetailsScreen() {
     if (router.canGoBack()) {
       router.back();
     } else {
-      router.replace("/"); // Altere para a rota inicial ou de listagem correta
+      router.replace("/");
     }
   }
 
