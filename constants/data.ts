@@ -134,10 +134,10 @@ export const ARTWORKS_DATA: ObraDetalhes[] = [
 export const EVENTS_DATA: EventoDetalhes[] = [
   {
     id: "1",
-    title: "O solo vira arte",
+    title: "Um dia muito especial",
     startDate: "24 maio 26",
     endDate: "3 junho 26",
-    imageSource: require("../assets/images/react-logo.png"), // Corrigido de ../../ para ../
+    imageSource: require("../assets/prog/Um-dia-muito-Especial-4294-.webp"), // Corrigido de ../../ para ../
     isSoldOut: true,
   },
   {
@@ -145,7 +145,7 @@ export const EVENTS_DATA: EventoDetalhes[] = [
     title: "Sons do Passado",
     startDate: "28 maio 26",
     endDate: "10 junho 26",
-    imageSource: require("../assets/images/react-logo.png"), // Corrigido de ../../ para ../
+    imageSource: require("../assets/prog/bdf-20250718-144029-d4eeda.jpg"), // Corrigido de ../../ para ../
     isSoldOut: false,
   },
 ];
@@ -153,17 +153,17 @@ export const EVENTS_DATA: EventoDetalhes[] = [
 export const EXHIBITIONS_DATA: ExposicaoDetalhes[] = [
   {
     id: "1",
-    title: "O solo vira arte",
+    title: "A Magia das cores",
     startDate: "24 maio 26",
     endDate: "3 junho 26",
-    imageSource: require("../assets/images/react-logo.png"), // Corrigido de ../../ para ../
+    imageSource: require("../assets/images/exposicao/X-33-12.webp"), // Corrigido de ../../ para ../
   },
   {
     id: "2",
-    title: "Mundo em Cores",
+    title: "Modernismo",
     startDate: "24 maio 26",
     endDate: "3 junho 26",
-    imageSource: require("../assets/images/react-logo.png"), // Corrigido de ../../ para ../
+    imageSource: require("../assets/images/exposicao/Sao-Paulo-Tarsila-do-Amaral.jpg"), // Corrigido de ../../ para ../
   },
 ];
 

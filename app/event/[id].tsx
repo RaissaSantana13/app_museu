@@ -28,7 +28,7 @@ const EVENT_DETAIL_MOCK = {
     { date: "11/05", details: "Quinta, às 19h" },
     { date: "12/05", details: "Sexta, às 19h" },
   ],
-  imageSource: require("../../assets/images/react-logo.png"),
+  imageSource: require("../../assets/prog/Um-dia-muito-Especial-4294-.webp"),
 };
 
 export default function EventDetailsScreen() {

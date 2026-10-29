@@ -30,7 +30,7 @@ const EXHIBITIONS_DATA = [
       { date: "10/05 a 30/06", details: "Terça a Domingo, 10h às 18h" },
       { date: "Feriados", details: "10h às 14h" },
     ],
-    imageSource: require("../../assets/images/react-logo.png"),
+    imageSource: require("../../assets/images/exposicao/X-33-12.webp"),
   },
 ];
 

@@ -32,7 +32,11 @@ export function ExhibitionCard({ exhibition }: ExhibitionCardProps) {
       asChild
     >
       <TouchableOpacity style={styles.card} activeOpacity={0.9}>
-        <Image source={exhibition.imageSource} style={styles.image} />
+        <Image
+          source={exhibition.imageSource}
+          style={styles.image}
+          resizeMode="cover"
+        />
 
         <View style={styles.info}>
           <Text style={styles.title} numberOfLines={1}>
@@ -60,24 +64,35 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginRight: 16,
     width: 180,
+    height: 280,
     overflow: "hidden",
   },
+
   image: {
     width: "100%",
-    aspectRatio: 1,
-    resizeMode: "cover",
+    height: 180,
   },
-  info: { padding: 12 },
+
+  info: {
+    flex: 1,
+    padding: 12,
+    backgroundColor: COLORS.secondaryBeige,
+  },
+
   title: {
     color: COLORS.textDark,
     fontSize: 14,
     fontWeight: "bold",
     marginBottom: 8,
   },
+
   date: {
     color: COLORS.textDark,
     fontSize: 12,
     marginBottom: 2,
   },
-  bold: { fontWeight: "bold" },
+
+  bold: {
+    fontWeight: "bold",
+  },
 });
