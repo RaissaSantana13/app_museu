@@ -1,45 +1,55 @@
-import { Href, Link } from "expo-router";
-import React from "react";
+import { Link, type Href } from "expo-router";
+import React, { useState } from "react";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { ObraDetalhes } from "../constants/data";
 import { COLORS } from "../constants/theme";
+import type { ArtworkSummary } from "../services/works";
 
 interface ArtworkCardProps {
-  artwork: ObraDetalhes;
+  artwork: ArtworkSummary;
+  coverUrl?: string;
 }
 
-export function ArtworkCard({ artwork }: ArtworkCardProps) {
+export function ArtworkCard({ artwork, coverUrl }: ArtworkCardProps) {
+  const [failedCover, setFailedCover] = useState<string>();
+
   return (
     <Link
-      href={
-        {
-          pathname: "/artwork/[id]",
-          params: { id: artwork.id },
-        } as Href<any>
-      }
+      href={`/artwork/${artwork.idArtwork}` as Href}
       asChild
     >
       <TouchableOpacity style={styles.card} activeOpacity={0.9}>
-        <Image source={artwork.img} style={styles.image} resizeMode="cover" />
+        {coverUrl && coverUrl !== failedCover ? (
+          <Image
+            source={{ uri: coverUrl }}
+            style={styles.image}
+            resizeMode="cover"
+            accessibilityLabel={`Capa de ${artwork.title}`}
+            onError={() => setFailedCover(coverUrl)}
+          />
+        ) : (
+          <View style={[styles.image, styles.placeholder]}>
+            <Text style={styles.subtitle}>Imagem indisponível</Text>
+          </View>
+        )}
 
         <View style={styles.info}>
           <Text style={styles.title} numberOfLines={1}>
             {artwork.title}
           </Text>
 
-          {artwork.artist && (
+          {artwork.artistName ? (
             <Text style={styles.subtitle} numberOfLines={1}>
               <Text style={styles.bold}>Artista: </Text>
-              {artwork.artist}
+              {artwork.artistName}
             </Text>
-          )}
+          ) : null}
 
-          {artwork.year && (
+          {artwork.creationYear != null ? (
             <Text style={styles.subtitle} numberOfLines={1}>
               <Text style={styles.bold}>Ano: </Text>
-              {artwork.year}
+              {artwork.creationYear}
             </Text>
-          )}
+          ) : null}
         </View>
       </TouchableOpacity>
     </Link>
@@ -59,6 +69,10 @@ const styles = StyleSheet.create({
   image: {
     width: "100%",
     height: 150,
+  },
+  placeholder: {
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   info: {
