@@ -1,7 +1,8 @@
-import { ARTWORKS_DATA, EVENTS_DATA, EXHIBITIONS_DATA } from "@/constants/data";
+import { EVENTS_DATA, EXHIBITIONS_DATA } from "@/constants/data";
 import { Ionicons } from "@expo/vector-icons";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   FlatList,
   ScrollView,
   StyleSheet,
@@ -14,12 +15,50 @@ import { ArtworkCard } from "../../components/ArtworkCard";
 import { EventCard } from "../../components/EventCard";
 import { ExhibitionCard } from "../../components/ExhibitionCard";
 import { MenuModal } from "../../components/MenuModal";
-import { SearchBar } from "../../components/SearchBar";
+import { HomeSearch } from "../../components/HomeSearch";
 import { COLORS } from "../../constants/theme";
+import { listWorkCovers, listWorks, type ArtworkSummary } from "../../services/works";
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const [isMenuVisible, setIsMenuVisible] = useState(false);
+  const [works, setWorks] = useState<ArtworkSummary[]>([]);
+  const [covers, setCovers] = useState<Record<number, string>>({});
+  const [loadingWorks, setLoadingWorks] = useState(true);
+  const [worksError, setWorksError] = useState(false);
+  const [worksAttempt, setWorksAttempt] = useState(0);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const { signal } = controller;
+
+    listWorks(1, signal)
+      .then(({ content }) => {
+        if (signal.aborted) return;
+        setWorks(content);
+        return listWorkCovers(content.map((work) => work.idArtwork), signal)
+          .then((urls) => {
+            if (!signal.aborted) setCovers(urls);
+          })
+          .catch(() => {
+            if (!signal.aborted) setCovers({});
+          });
+      })
+      .catch(() => {
+        if (!signal.aborted) setWorksError(true);
+      })
+      .finally(() => {
+        if (!signal.aborted) setLoadingWorks(false);
+      });
+
+    return () => controller.abort();
+  }, [worksAttempt]);
+
+  function retryWorks() {
+    setWorksError(false);
+    setLoadingWorks(true);
+    setWorksAttempt((current) => current + 1);
+  }
 
   return (
     <View
@@ -40,7 +79,7 @@ export default function HomeScreen() {
             </Text>
             <View style={{ width: 32 }} />
           </View>
-          <SearchBar />
+          <HomeSearch />
         </View>
 
         <View style={styles.eventsWrapper}>
@@ -70,14 +109,33 @@ export default function HomeScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitleLight}>OBRAS</Text>
-          <FlatList
-            data={ARTWORKS_DATA}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => <ArtworkCard artwork={item} />}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.flatListContent}
-          />
+          {loadingWorks ? (
+            <ActivityIndicator
+              accessibilityLabel="Carregando obras"
+              color={COLORS.secondaryBeige}
+            />
+          ) : worksError ? (
+            <View>
+              <Text style={styles.worksMessage}>Não foi possível carregar as obras.</Text>
+              <TouchableOpacity accessibilityRole="button" onPress={retryWorks}>
+                <Text style={styles.worksMessage}>Tentar novamente</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <FlatList
+              data={works}
+              keyExtractor={(item) => String(item.idArtwork)}
+              renderItem={({ item }) => (
+                <ArtworkCard artwork={item} coverUrl={covers[item.idArtwork]} />
+              )}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.flatListContent}
+              ListEmptyComponent={
+                <Text style={styles.emptyWorks}>Nenhuma obra cadastrada.</Text>
+              }
+            />
+          )}
         </View>
 
         <View style={styles.footer}>
@@ -154,6 +212,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   flatListContent: { paddingHorizontal: 20 },
+  worksMessage: { color: COLORS.secondaryBeige, paddingHorizontal: 20, paddingVertical: 6 },
+  emptyWorks: { color: COLORS.secondaryBeige },
   footer: {
     backgroundColor: COLORS.secondaryBeige,
     borderTopLeftRadius: 30,

@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   FlatList,
   StyleSheet,
   Text,
@@ -13,22 +14,98 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CollectionCard } from "../../components/CollectionCard";
 import { MenuModal } from "../../components/MenuModal";
 import { SearchBar } from "../../components/SearchBar";
-import { ARTWORKS_DATA } from "../../constants/data";
 import { COLORS } from "../../constants/theme";
+import {
+  listWorkCovers,
+  listWorks,
+  type ArtworkSummary,
+} from "../../services/works";
 
 export default function CollectionScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [isMenuVisible, setIsMenuVisible] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [works, setWorks] = useState<ArtworkSummary[]>([]);
+  const [covers, setCovers] = useState<Record<number, string>>({});
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [pageNumber, setPageNumber] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
 
-  const filteredArtworks = useMemo(() => {
-    return ARTWORKS_DATA.filter(
-      (artwork) =>
-        artwork.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        artwork.description.toLowerCase().includes(searchTerm.toLowerCase()),
-    );
-  }, [searchTerm]);
+  useEffect(() => {
+    const controller = new AbortController();
+
+    listWorks(pageNumber, controller.signal, search)
+      .then((page) => {
+        if (controller.signal.aborted) return;
+        setWorks((current) => {
+          const knownIds = new Set(current.map((work) => work.idArtwork));
+          return [
+            ...current,
+            ...page.content.filter((work) => !knownIds.has(work.idArtwork)),
+          ];
+        });
+        setTotal(page.totalElements);
+        setTotalPages(page.totalPages);
+        return listWorkCovers(
+          page.content.map((work) => work.idArtwork),
+          controller.signal,
+        )
+          .then((urls) => {
+            if (!controller.signal.aborted) {
+              setCovers((current) => ({ ...current, ...urls }));
+            }
+          })
+          .catch(() => {});
+      })
+      .catch((cause: unknown) => {
+        if (controller.signal.aborted) return;
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : "Não foi possível carregar o acervo.",
+        );
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [attempt, pageNumber, search]);
+
+  function applySearch(value: string) {
+    const nextSearch = value.trim();
+    if (nextSearch === search) return;
+
+    setSearch(nextSearch);
+    setPageNumber(1);
+    setWorks([]);
+    setCovers({});
+    setTotal(0);
+    setTotalPages(0);
+    setError(null);
+    setLoading(true);
+  }
+
+  function changeSearchInput(value: string) {
+    setSearchInput(value);
+    if (!value.trim()) applySearch("");
+  }
+
+  function retry() {
+    setError(null);
+    setLoading(true);
+    setAttempt((current) => current + 1);
+  }
+
+  function loadMore() {
+    setLoading(true);
+    setPageNumber(pageNumber + 1);
+  }
 
   return (
     <View
@@ -62,34 +139,76 @@ export default function CollectionScreen() {
               />
             </TouchableOpacity>
           </View>
-
           <SearchBar
-            value={searchTerm}
-            onChangeText={setSearchTerm}
-            placeholder="Buscar obras..."
+            value={searchInput}
+            onChangeText={changeSearchInput}
+            onSubmit={() => applySearch(searchInput)}
+            onClear={() => changeSearchInput("")}
+            placeholder="Buscar obras por título"
           />
         </View>
 
         <View style={styles.contentWrapper}>
-          <Text style={styles.resultsCount}>
-            {filteredArtworks.length}{" "}
-            {filteredArtworks.length === 1
-              ? "obra encontrada"
-              : "obras encontradas"}
-          </Text>
-
-          <FlatList
-            data={filteredArtworks}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => <CollectionCard artwork={item} />}
-            contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>
-                Nenhuma obra encontrada para esta pesquisa.
+          {loading && pageNumber === 1 ? (
+            <ActivityIndicator
+              accessibilityLabel="Carregando acervo"
+              color={COLORS.primaryBrown}
+              style={styles.resultsCount}
+            />
+          ) : error && pageNumber === 1 ? (
+            <View>
+              <Text accessibilityRole="alert" style={styles.emptyText}>
+                {error}
               </Text>
-            }
-          />
+              <TouchableOpacity accessibilityRole="button" onPress={retry}>
+                <Text style={styles.retryText}>Tentar novamente</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <>
+              <Text style={styles.resultsCount}>
+                {total > 0 ? `Mostrando ${works.length} de ${total}` : "0 obras"}
+              </Text>
+              <FlatList
+                data={works}
+                keyExtractor={(item) => String(item.idArtwork)}
+                renderItem={({ item }) => (
+                  <CollectionCard
+                    artwork={item}
+                    coverUrl={covers[item.idArtwork]}
+                  />
+                )}
+                contentContainerStyle={styles.listContent}
+                showsVerticalScrollIndicator={false}
+                ListEmptyComponent={
+                  <Text style={styles.emptyText}>
+                    {search ? "Nenhuma obra encontrada." : "Nenhuma obra cadastrada."}
+                  </Text>
+                }
+                ListFooterComponent={
+                  loading ? (
+                    <ActivityIndicator
+                      accessibilityLabel="Carregando mais obras"
+                      color={COLORS.primaryBrown}
+                    />
+                  ) : error ? (
+                    <View>
+                      <Text accessibilityRole="alert" style={styles.emptyText}>
+                        {error}
+                      </Text>
+                      <TouchableOpacity accessibilityRole="button" onPress={retry}>
+                        <Text style={styles.retryText}>Tentar novamente</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : pageNumber < totalPages ? (
+                    <TouchableOpacity accessibilityRole="button" onPress={loadMore}>
+                      <Text style={styles.retryText}>Carregar mais</Text>
+                    </TouchableOpacity>
+                  ) : null
+                }
+              />
+            </>
+          )}
         </View>
       </View>
 
@@ -153,5 +272,11 @@ const styles = StyleSheet.create({
     opacity: 0.6,
     marginTop: 40,
     fontSize: 16,
+  },
+  retryText: {
+    color: COLORS.primaryBrown,
+    fontWeight: "bold",
+    padding: 12,
+    textAlign: "center",
   },
 });
