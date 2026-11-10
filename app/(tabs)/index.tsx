@@ -1,4 +1,3 @@
-import { EXHIBITIONS_DATA } from "@/constants/data";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 
@@ -27,19 +26,36 @@ import {
   type ArtworkSummary,
 } from "../../services/works";
 
-const API_URL = (process.env.EXPO_PUBLIC_API_URL || "http://192.168.1.101:3000") // o endereço da maquina que ta rodando
-  .replace(/\/+$/, "");
+// Endereço da API configurado no .env
+const API_URL = process.env.EXPO_PUBLIC_API_URL?.replace(/\/+$/, "");
+
+if (!API_URL) {
+  throw new Error("EXPO_PUBLIC_API_URL não configurada no .env");
+}
 
 const EVENTS_ENDPOINT = `${API_URL}/api/v1/events`;
+
+// Imagens locais da programação
+const PROGRAM_IMAGES: Record<number, any> = {
+  1: require("../../assets/prog/Um-dia-muito-Especial-4294-.webp"),
+  2: require("../../assets/prog/bdf-20250718-144029-d4eeda.jpg"),
+  5: require("../../assets/prog/images (7).jpg"),
+  6: require("../../assets/prog/images (8).jpg"),
+};
+
+const EXHIBITION_IMAGES: Record<number, any> = {
+  3: require("../../assets/images/exposicao/X-33-12.webp"),
+  4: require("../../assets/images/exposicao/Sao-Paulo-Tarsila-do-Amaral.jpg"),
+};
 
 interface EventApiResponse {
   idEvent: number;
   title: string;
   description: string;
   start_date: string;
+  end_date: string;
   startTime?: string;
   durationMinutes?: number;
-  end_date: string;
   allDay?: boolean;
   location: string;
   color: string;
@@ -53,17 +69,17 @@ function extractEvents(response: unknown): EventApiResponse[] {
 
   if (response && typeof response === "object") {
     const data = response as {
-      data?: unknown;
       dados?: unknown;
+      data?: unknown;
       events?: unknown;
     };
 
-    if (Array.isArray(data.data)) {
-      return data.data as EventApiResponse[];
-    }
-
     if (Array.isArray(data.dados)) {
       return data.dados as EventApiResponse[];
+    }
+
+    if (Array.isArray(data.data)) {
+      return data.data as EventApiResponse[];
     }
 
     if (Array.isArray(data.events)) {
@@ -72,6 +88,47 @@ function extractEvents(response: unknown): EventApiResponse[] {
   }
 
   return [];
+}
+
+// Remove registros duplicados
+function removeDuplicates(events: EventApiResponse[]) {
+  const uniqueEvents = new Map<string, EventApiResponse>();
+
+  events.forEach((event) => {
+    const key = [
+      event.title?.trim().toLowerCase(),
+      event.description?.trim().toLowerCase(),
+      event.start_date,
+      event.end_date,
+      event.location?.trim().toLowerCase(),
+    ].join("|");
+
+    if (!uniqueEvents.has(key)) {
+      uniqueEvents.set(key, event);
+    }
+  });
+
+  return Array.from(uniqueEvents.values());
+}
+
+// Formata a data sem alterar o dia por causa do fuso horário
+function formatDate(date?: string) {
+  if (!date) return "Não informado";
+
+  const parsedDate = new Date(date);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return "Não informado";
+  }
+
+  return parsedDate.toLocaleDateString("pt-BR", {
+    timeZone: "UTC",
+  });
+}
+
+// Identifica exposições
+function isExhibition(event: EventApiResponse) {
+  return [3, 4].includes(event.idEvent);
 }
 
 export default function HomeScreen() {
@@ -86,12 +143,13 @@ export default function HomeScreen() {
   const [worksError, setWorksError] = useState(false);
   const [worksAttempt, setWorksAttempt] = useState(0);
 
-  // Eventos
+  // Programação e exposições
   const [events, setEvents] = useState<EventApiResponse[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(true);
   const [eventsError, setEventsError] = useState(false);
   const [eventsAttempt, setEventsAttempt] = useState(0);
 
+  // Busca os eventos na API
   useEffect(() => {
     const controller = new AbortController();
     const { signal } = controller;
@@ -110,22 +168,22 @@ export default function HomeScreen() {
         });
 
         if (!response.ok) {
-          throw new Error(`Erro ao buscar eventos: HTTP ${response.status}`);
+          // throw new Error(`Erro ao buscar eventos: HTTP ${response.status}`);
         }
 
         const responseData: unknown = await response.json();
 
-        if (signal.aborted) {
-          return;
-        }
+        if (signal.aborted) return;
 
+        // Extrai os registros
         const eventsData = extractEvents(responseData);
 
-        setEvents(eventsData);
+        // Remove duplicados
+        const uniqueEvents = removeDuplicates(eventsData);
+
+        setEvents(uniqueEvents);
       } catch (error) {
-        if (signal.aborted) {
-          return;
-        }
+        if (signal.aborted) return;
 
         console.error("Erro ao carregar eventos:", error);
 
@@ -143,22 +201,25 @@ export default function HomeScreen() {
     return () => controller.abort();
   }, [eventsAttempt]);
 
+  // Separa os registros em duas categorias
+  const programEvents = events.filter((event) => !isExhibition(event));
+
+  const exhibitionEvents = events.filter((event) => isExhibition(event));
+
   function retryEvents() {
     setEventsError(false);
     setLoadingEvents(true);
-
     setEventsAttempt((current) => current + 1);
   }
 
+  // Busca as obras
   useEffect(() => {
     const controller = new AbortController();
     const { signal } = controller;
 
     listWorks(1, signal)
       .then(({ content }) => {
-        if (signal.aborted) {
-          return;
-        }
+        if (signal.aborted) return;
 
         setWorks(content);
 
@@ -191,13 +252,9 @@ export default function HomeScreen() {
     return () => controller.abort();
   }, [worksAttempt]);
 
-  /**
-   * Tenta buscar as obras novamente.
-   */
   function retryWorks() {
     setWorksError(false);
     setLoadingWorks(true);
-
     setWorksAttempt((current) => current + 1);
   }
 
@@ -251,7 +308,7 @@ export default function HomeScreen() {
           ) : eventsError ? (
             <View style={styles.eventsErrorContainer}>
               <Text style={styles.eventsMessage}>
-                Não foi possível carregar os eventos.
+                Não foi possível carregar a programação.
               </Text>
 
               <TouchableOpacity
@@ -264,10 +321,20 @@ export default function HomeScreen() {
             </View>
           ) : (
             <FlatList
-              data={events}
+              data={programEvents}
               keyExtractor={(item) => String(item.idEvent)}
               renderItem={({ item }) => (
-                <EventCard {...item} id={String(item.idEvent)} />
+                <EventCard
+                  id={String(item.idEvent)}
+                  title={item.title}
+                  start_date={item.start_date}
+                  end_date={item.end_date}
+                  imageSource={
+                    PROGRAM_IMAGES[item.idEvent] ??
+                    require("../../assets/prog/Um-dia-muito-Especial-4294-.webp")
+                  }
+                  isSoldOut={false}
+                />
               )}
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -285,14 +352,39 @@ export default function HomeScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitleLight}>EXPOSIÇÕES EM CARTAZ</Text>
 
-          <FlatList
-            data={EXHIBITIONS_DATA}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => <ExhibitionCard exhibition={item} />}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.flatListContent}
-          />
+          {loadingEvents ? (
+            <ActivityIndicator color={COLORS.secondaryBeige} />
+          ) : eventsError ? (
+            <Text style={styles.worksMessage}>
+              Não foi possível carregar as exposições.
+            </Text>
+          ) : (
+            <FlatList
+              data={exhibitionEvents}
+              keyExtractor={(item) => String(item.idEvent)}
+              renderItem={({ item }) => (
+                <ExhibitionCard
+                  exhibition={{
+                    id: String(item.idEvent),
+                    title: item.title,
+                    startDate: formatDate(item.start_date),
+                    endDate: formatDate(item.end_date),
+                    imageSource:
+                      EXHIBITION_IMAGES[item.idEvent] ??
+                      require("../../assets/images/exposicao/X-33-12.webp"),
+                  }}
+                />
+              )}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.flatListContent}
+              ListEmptyComponent={
+                <Text style={styles.emptyWorks}>
+                  Nenhuma exposição cadastrada.
+                </Text>
+              }
+            />
+          )}
         </View>
 
         {/* Obras */}

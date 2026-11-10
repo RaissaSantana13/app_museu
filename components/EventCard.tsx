@@ -1,4 +1,4 @@
-import { Href, Link } from "expo-router"; // 1. Importe o Href aqui
+import { Href, Link } from "expo-router";
 import React from "react";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { COLORS } from "../constants/theme";
@@ -6,13 +6,12 @@ import { COLORS } from "../constants/theme";
 export function EventCard({
   id,
   title,
-  startDate,
-  endDate,
+  start_date,
+  end_date,
   imageSource,
   isSoldOut,
 }: any) {
   return (
-    // 2. Adicione "as Href<any>" no final do objeto href
     <Link
       href={{ pathname: "/event/[id]", params: { id } } as Href<any>}
       asChild
@@ -32,15 +31,26 @@ export function EventCard({
             </Text>
           </View>
         </View>
+
         <View style={styles.info}>
           <Text style={styles.title}>{title}</Text>
+
           <Text style={styles.date}>
             <Text style={styles.bold}>Início | </Text>
-            {startDate}
+            {start_date
+              ? new Date(start_date).toLocaleDateString("pt-BR", {
+                  timeZone: "UTC",
+                })
+              : "Não informado"}
           </Text>
+
           <Text style={styles.date}>
             <Text style={styles.bold}>Término | </Text>
-            {endDate}
+            {end_date
+              ? new Date(end_date).toLocaleDateString("pt-BR", {
+                  timeZone: "UTC",
+                })
+              : "Não informado"}
           </Text>
         </View>
       </TouchableOpacity>
@@ -56,8 +66,15 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     width: 280,
   },
-  imageContainer: { height: 140, width: "100%" },
-  image: { width: "100%", height: "100%", resizeMode: "cover" },
+  imageContainer: {
+    height: 140,
+    width: "100%",
+  },
+  image: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+  },
   badge: {
     position: "absolute",
     top: 8,
@@ -66,16 +83,32 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 8,
   },
-  badgeSoldOut: { backgroundColor: COLORS.badgeBlue },
-  badgeAvailable: { backgroundColor: COLORS.accentGreen },
-  badgeText: { color: COLORS.textDark, fontWeight: "bold", fontSize: 12 },
-  info: { padding: 12 },
+  badgeSoldOut: {
+    backgroundColor: COLORS.badgeBlue,
+  },
+  badgeAvailable: {
+    backgroundColor: COLORS.accentGreen,
+  },
+  badgeText: {
+    color: COLORS.textDark,
+    fontWeight: "bold",
+    fontSize: 12,
+  },
+  info: {
+    padding: 12,
+  },
   title: {
     color: COLORS.secondaryBeige,
     fontSize: 16,
     fontWeight: "bold",
     marginBottom: 8,
   },
-  date: { color: COLORS.secondaryBeige, fontSize: 12, marginBottom: 2 },
-  bold: { fontWeight: "bold" },
+  date: {
+    color: COLORS.secondaryBeige,
+    fontSize: 12,
+    marginBottom: 2,
+  },
+  bold: {
+    fontWeight: "bold",
+  },
 });
