@@ -1,12 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  type ScrollViewInstance,
   StyleSheet,
   Text,
   TextInput,
@@ -155,6 +156,7 @@ export default function RegisterScreen() {
   const emailInput = useRef<TextInputInstance>(null);
   const passwordInput = useRef<TextInputInstance>(null);
   const confirmPasswordInput = useRef<TextInputInstance>(null);
+  const scrollView = useRef<ScrollViewInstance>(null);
 
   const closeToast = useCallback(() => setToast(null), []);
 
@@ -181,6 +183,18 @@ export default function RegisterScreen() {
         setFocusedField((current) => (current === field ? null : current)),
     };
   }
+
+  useEffect(() => {
+    if (focusedField !== "password" && focusedField !== "confirmPassword") {
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      scrollView.current?.scrollToEnd({ animated: true });
+    }, 300);
+
+    return () => clearTimeout(timeout);
+  }, [focusedField]);
 
   async function handleRegister() {
     if (isSubmitting) return;
@@ -289,12 +303,20 @@ export default function RegisterScreen() {
 
         <KeyboardAvoidingView
           style={styles.loginArea}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          behavior={
+            Platform.OS === "ios"
+              ? "padding"
+              : Platform.OS === "android"
+                ? "height"
+                : undefined
+          }
         >
           <ScrollView
+            ref={scrollView}
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
+            showsVerticalScrollIndicator={false}
           >
             <View style={styles.loginCard}>
               <View style={styles.logoBadge}>
@@ -738,7 +760,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 18,
     paddingTop: 8,
-    paddingBottom: 24,
+    paddingBottom: 32,
   },
 
   loginCard: {
