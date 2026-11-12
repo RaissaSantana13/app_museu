@@ -138,6 +138,9 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [focusedField, setFocusedField] = useState<FieldName | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState("");
@@ -169,6 +172,14 @@ export default function RegisterScreen() {
     });
 
     setFormError("");
+  }
+
+  function getFocusProps(field: FieldName) {
+    return {
+      onFocus: () => setFocusedField(field),
+      onBlur: () =>
+        setFocusedField((current) => (current === field ? null : current)),
+    };
   }
 
   async function handleRegister() {
@@ -233,23 +244,44 @@ export default function RegisterScreen() {
   return (
     <View
       style={[
-      styles.mainContainer,
-      {
+        styles.mainContainer,
+        {
           paddingTop: insets.top,
           paddingBottom: insets.bottom,
-      },
+        },
       ]}
     >
       <View style={styles.background}>
+        <View pointerEvents="none" style={styles.circleTop} />
+        <View pointerEvents="none" style={styles.circleBottom} />
+
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => setIsMenuVisible(true)}>
-            <Ionicons name="menu" size={32} color={COLORS.secondaryBeige} />
+          <TouchableOpacity
+            accessibilityLabel="Abrir menu"
+            accessibilityRole="button"
+            activeOpacity={0.8}
+            hitSlop={8}
+            onPress={() => setIsMenuVisible(true)}
+            style={styles.headerButton}
+          >
+            <Ionicons name="menu" size={24} color={COLORS.secondaryBeige} />
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => router.back()}>
+          <Text style={styles.headerTitle}>
+            MUSEU DE <Text style={styles.headerTitleHighlight}>BIRIGUI</Text>
+          </Text>
+
+          <TouchableOpacity
+            accessibilityLabel="Voltar"
+            accessibilityRole="button"
+            activeOpacity={0.8}
+            hitSlop={8}
+            onPress={() => router.back()}
+            style={styles.headerButton}
+          >
             <Ionicons
               name="arrow-back"
-              size={28}
+              size={22}
               color={COLORS.secondaryBeige}
             />
           </TouchableOpacity>
@@ -265,142 +297,302 @@ export default function RegisterScreen() {
             keyboardDismissMode="on-drag"
           >
             <View style={styles.loginCard}>
-              <Text style={styles.title}>MUSEU DE</Text>
+              <View style={styles.logoBadge}>
+                <Ionicons
+                  name="person-add-outline"
+                  size={30}
+                  color={COLORS.yellowIcon}
+                />
+              </View>
 
-              <Text style={styles.titleHighlight}>BIRIGUI</Text>
+              <Text style={styles.title}>Crie sua conta</Text>
+
+              <Text style={styles.subtitle}>
+                Preencha seus dados para se cadastrar e acessar o museu.
+              </Text>
 
               <View style={styles.form}>
-                <Text style={styles.label}>Primeiro nome:</Text>
-                <TextInput
-                  ref={firstNameInput}
+                <View style={styles.sectionHeader}>
+                  <Ionicons
+                    name="person-outline"
+                    size={16}
+                    color={COLORS.primaryBrown}
+                  />
+                  <Text style={styles.sectionTitle}>Seus dados</Text>
+                </View>
+
+                <Text style={styles.label}>Primeiro nome</Text>
+                <View
                   style={[
-                    styles.input,
-                    !!fieldErrors.firstName && styles.inputError,
+                    styles.inputWrapper,
+                    focusedField === "firstName" && styles.inputWrapperFocused,
+                    !!fieldErrors.firstName && styles.inputWrapperError,
                   ]}
-                  value={firstName}
-                  onChangeText={(value) => {
-                    setFirstName(value);
-                    clearFieldError("firstName");
-                  }}
-                  autoCapitalize="words"
-                  maxLength={100}
-                  returnKeyType="next"
-                  blurOnSubmit={false}
-                  onSubmitEditing={() => lastNameInput.current?.focus()}
-                />
+                >
+                  <Ionicons
+                    name="person-outline"
+                    size={18}
+                    color={COLORS.primaryBrown}
+                    style={styles.inputIcon}
+                  />
+                  <TextInput
+                    ref={firstNameInput}
+                    style={styles.input}
+                    value={firstName}
+                    onChangeText={(value) => {
+                      setFirstName(value);
+                      clearFieldError("firstName");
+                    }}
+                    placeholder="Digite seu primeiro nome"
+                    placeholderTextColor="rgba(154, 76, 22, 0.55)"
+                    selectionColor={COLORS.primaryBrown}
+                    autoCapitalize="words"
+                    maxLength={100}
+                    returnKeyType="next"
+                    blurOnSubmit={false}
+                    onSubmitEditing={() => lastNameInput.current?.focus()}
+                    {...getFocusProps("firstName")}
+                  />
+                </View>
                 {!!fieldErrors.firstName && (
                   <Text style={styles.fieldError}>{fieldErrors.firstName}</Text>
                 )}
 
-                <Text style={styles.label}>Último nome:</Text>
-                <TextInput
-                  ref={lastNameInput}
+                <Text style={styles.label}>Último nome</Text>
+                <View
                   style={[
-                    styles.input,
-                    !!fieldErrors.lastName && styles.inputError,
+                    styles.inputWrapper,
+                    focusedField === "lastName" && styles.inputWrapperFocused,
+                    !!fieldErrors.lastName && styles.inputWrapperError,
                   ]}
-                  value={lastName}
-                  onChangeText={(value) => {
-                    setLastName(value);
-                    clearFieldError("lastName");
-                  }}
-                  autoCapitalize="words"
-                  maxLength={100}
-                  returnKeyType="next"
-                  blurOnSubmit={false}
-                  onSubmitEditing={() => usernameInput.current?.focus()}
-                />
+                >
+                  <Ionicons
+                    name="person-outline"
+                    size={18}
+                    color={COLORS.primaryBrown}
+                    style={styles.inputIcon}
+                  />
+                  <TextInput
+                    ref={lastNameInput}
+                    style={styles.input}
+                    value={lastName}
+                    onChangeText={(value) => {
+                      setLastName(value);
+                      clearFieldError("lastName");
+                    }}
+                    placeholder="Digite seu último nome"
+                    placeholderTextColor="rgba(154, 76, 22, 0.55)"
+                    selectionColor={COLORS.primaryBrown}
+                    autoCapitalize="words"
+                    maxLength={100}
+                    returnKeyType="next"
+                    blurOnSubmit={false}
+                    onSubmitEditing={() => usernameInput.current?.focus()}
+                    {...getFocusProps("lastName")}
+                  />
+                </View>
                 {!!fieldErrors.lastName && (
                   <Text style={styles.fieldError}>{fieldErrors.lastName}</Text>
                 )}
 
-                <Text style={styles.label}>Username:</Text>
-                <TextInput
-                  ref={usernameInput}
+                <Text style={styles.label}>Nome de usuário</Text>
+                <View
                   style={[
-                    styles.input,
-                    !!fieldErrors.username && styles.inputError,
+                    styles.inputWrapper,
+                    focusedField === "username" && styles.inputWrapperFocused,
+                    !!fieldErrors.username && styles.inputWrapperError,
                   ]}
-                  value={username}
-                  onChangeText={(value) => {
-                    setUsername(value);
-                    clearFieldError("username");
-                  }}
-                  autoCapitalize="none"
-                  maxLength={100}
-                  returnKeyType="next"
-                  blurOnSubmit={false}
-                  onSubmitEditing={() => emailInput.current?.focus()}
-                />
+                >
+                  <Ionicons
+                    name="at-outline"
+                    size={18}
+                    color={COLORS.primaryBrown}
+                    style={styles.inputIcon}
+                  />
+                  <TextInput
+                    ref={usernameInput}
+                    style={styles.input}
+                    value={username}
+                    onChangeText={(value) => {
+                      setUsername(value);
+                      clearFieldError("username");
+                    }}
+                    placeholder="Escolha um nome de usuário"
+                    placeholderTextColor="rgba(154, 76, 22, 0.55)"
+                    selectionColor={COLORS.primaryBrown}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    maxLength={100}
+                    returnKeyType="next"
+                    blurOnSubmit={false}
+                    onSubmitEditing={() => emailInput.current?.focus()}
+                    {...getFocusProps("username")}
+                  />
+                </View>
                 {!!fieldErrors.username && (
                   <Text style={styles.fieldError}>{fieldErrors.username}</Text>
                 )}
 
-                <Text style={styles.label}>E-mail:</Text>
-                <TextInput
-                  ref={emailInput}
-                  style={[styles.input, !!fieldErrors.email && styles.inputError]}
-                  value={email}
-                  onChangeText={(value) => {
-                    setEmail(value);
-                    clearFieldError("email");
-                  }}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoComplete="email"
-                  maxLength={100}
-                  returnKeyType="next"
-                  blurOnSubmit={false}
-                  onSubmitEditing={() => passwordInput.current?.focus()}
-                />
+                <Text style={styles.label}>E-mail</Text>
+                <View
+                  style={[
+                    styles.inputWrapper,
+                    focusedField === "email" && styles.inputWrapperFocused,
+                    !!fieldErrors.email && styles.inputWrapperError,
+                  ]}
+                >
+                  <Ionicons
+                    name="mail-outline"
+                    size={18}
+                    color={COLORS.primaryBrown}
+                    style={styles.inputIcon}
+                  />
+                  <TextInput
+                    ref={emailInput}
+                    style={styles.input}
+                    value={email}
+                    onChangeText={(value) => {
+                      setEmail(value);
+                      clearFieldError("email");
+                    }}
+                    placeholder="voce@email.com"
+                    placeholderTextColor="rgba(154, 76, 22, 0.55)"
+                    selectionColor={COLORS.primaryBrown}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    autoComplete="email"
+                    maxLength={100}
+                    returnKeyType="next"
+                    blurOnSubmit={false}
+                    onSubmitEditing={() => passwordInput.current?.focus()}
+                    {...getFocusProps("email")}
+                  />
+                </View>
                 {!!fieldErrors.email && (
                   <Text style={styles.fieldError}>{fieldErrors.email}</Text>
                 )}
 
-                <Text style={styles.label}>Senha:</Text>
-                <TextInput
-                  ref={passwordInput}
+                <View style={[styles.sectionHeader, styles.sectionHeaderSpaced]}>
+                  <Ionicons
+                    name="shield-checkmark-outline"
+                    size={16}
+                    color={COLORS.primaryBrown}
+                  />
+                  <Text style={styles.sectionTitle}>Segurança</Text>
+                </View>
+
+                <Text style={styles.label}>Senha</Text>
+                <View
                   style={[
-                    styles.input,
-                    !!fieldErrors.password && styles.inputError,
+                    styles.inputWrapper,
+                    focusedField === "password" && styles.inputWrapperFocused,
+                    !!fieldErrors.password && styles.inputWrapperError,
                   ]}
-                  value={password}
-                  onChangeText={(value) => {
-                    setPassword(value);
-                    clearFieldError("password");
-                    clearFieldError("confirmPassword");
-                  }}
-                  secureTextEntry
-                  textContentType="newPassword"
-                  autoCapitalize="none"
-                  maxLength={100}
-                  returnKeyType="next"
-                  blurOnSubmit={false}
-                  onSubmitEditing={() => confirmPasswordInput.current?.focus()}
-                />
+                >
+                  <Ionicons
+                    name="lock-closed-outline"
+                    size={18}
+                    color={COLORS.primaryBrown}
+                    style={styles.inputIcon}
+                  />
+                  <TextInput
+                    ref={passwordInput}
+                    style={styles.input}
+                    value={password}
+                    onChangeText={(value) => {
+                      setPassword(value);
+                      clearFieldError("password");
+                      clearFieldError("confirmPassword");
+                    }}
+                    placeholder="Mínimo de 6 caracteres"
+                    placeholderTextColor="rgba(154, 76, 22, 0.55)"
+                    selectionColor={COLORS.primaryBrown}
+                    secureTextEntry={!showPassword}
+                    textContentType="newPassword"
+                    autoCapitalize="none"
+                    maxLength={100}
+                    returnKeyType="next"
+                    blurOnSubmit={false}
+                    onSubmitEditing={() => confirmPasswordInput.current?.focus()}
+                    {...getFocusProps("password")}
+                  />
+                  <TouchableOpacity
+                    accessibilityLabel={
+                      showPassword ? "Ocultar senha" : "Mostrar senha"
+                    }
+                    accessibilityRole="button"
+                    activeOpacity={0.7}
+                    hitSlop={8}
+                    onPress={() => setShowPassword((current) => !current)}
+                  >
+                    <Ionicons
+                      name={showPassword ? "eye-off-outline" : "eye-outline"}
+                      size={20}
+                      color={COLORS.primaryBrown}
+                    />
+                  </TouchableOpacity>
+                </View>
                 {!!fieldErrors.password && (
                   <Text style={styles.fieldError}>{fieldErrors.password}</Text>
                 )}
 
-                <Text style={styles.label}>Confirme a senha:</Text>
-                <TextInput
-                  ref={confirmPasswordInput}
+                <Text style={styles.label}>Confirme a senha</Text>
+                <View
                   style={[
-                    styles.input,
-                    !!fieldErrors.confirmPassword && styles.inputError,
+                    styles.inputWrapper,
+                    focusedField === "confirmPassword" &&
+                      styles.inputWrapperFocused,
+                    !!fieldErrors.confirmPassword && styles.inputWrapperError,
                   ]}
-                  value={confirmPassword}
-                  onChangeText={(value) => {
-                    setConfirmPassword(value);
-                    clearFieldError("confirmPassword");
-                  }}
-                  secureTextEntry
-                  textContentType="newPassword"
-                  autoCapitalize="none"
-                  maxLength={100}
-                  returnKeyType="done"
-                  onSubmitEditing={handleRegister}
-                />
+                >
+                  <Ionicons
+                    name="lock-closed-outline"
+                    size={18}
+                    color={COLORS.primaryBrown}
+                    style={styles.inputIcon}
+                  />
+                  <TextInput
+                    ref={confirmPasswordInput}
+                    style={styles.input}
+                    value={confirmPassword}
+                    onChangeText={(value) => {
+                      setConfirmPassword(value);
+                      clearFieldError("confirmPassword");
+                    }}
+                    placeholder="Repita a senha"
+                    placeholderTextColor="rgba(154, 76, 22, 0.55)"
+                    selectionColor={COLORS.primaryBrown}
+                    secureTextEntry={!showConfirmPassword}
+                    textContentType="newPassword"
+                    autoCapitalize="none"
+                    maxLength={100}
+                    returnKeyType="done"
+                    onSubmitEditing={handleRegister}
+                    {...getFocusProps("confirmPassword")}
+                  />
+                  <TouchableOpacity
+                    accessibilityLabel={
+                      showConfirmPassword
+                        ? "Ocultar confirmação de senha"
+                        : "Mostrar confirmação de senha"
+                    }
+                    accessibilityRole="button"
+                    activeOpacity={0.7}
+                    hitSlop={8}
+                    onPress={() =>
+                      setShowConfirmPassword((current) => !current)
+                    }
+                  >
+                    <Ionicons
+                      name={
+                        showConfirmPassword ? "eye-off-outline" : "eye-outline"
+                      }
+                      size={20}
+                      color={COLORS.primaryBrown}
+                    />
+                  </TouchableOpacity>
+                </View>
                 {!!fieldErrors.confirmPassword && (
                   <Text style={styles.fieldError}>
                     {fieldErrors.confirmPassword}
@@ -408,19 +600,19 @@ export default function RegisterScreen() {
                 )}
 
                 {!!formError && (
-                  <Text style={styles.formError}>{formError}</Text>
+                  <View style={styles.formErrorBox}>
+                    <Ionicons
+                      name="alert-circle-outline"
+                      size={18}
+                      color={ERROR_COLOR}
+                    />
+                    <Text style={styles.formError}>{formError}</Text>
+                  </View>
                 )}
 
                 <TouchableOpacity
-                  onPress={() => router.push("/login")}
-                  style={styles.loginButton}
-                >
-                  <Text style={styles.registerText}>
-                    Já tem uma conta? Faça login
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
+                  accessibilityRole="button"
+                  activeOpacity={0.85}
                   style={[
                     styles.registerButton,
                     isSubmitting && styles.registerButtonDisabled,
@@ -429,10 +621,29 @@ export default function RegisterScreen() {
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? (
-                    <ActivityIndicator color="#000000" />
+                    <ActivityIndicator color={COLORS.textDark} />
                   ) : (
-                    <Text style={styles.registerButtonText}>REGISTRAR</Text>
+                    <>
+                      <Ionicons
+                        name="person-add-outline"
+                        size={20}
+                        color={COLORS.textDark}
+                      />
+                      <Text style={styles.registerButtonText}>REGISTRAR</Text>
+                    </>
                   )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  activeOpacity={0.7}
+                  onPress={() => router.push("/login")}
+                  style={styles.loginLink}
+                >
+                  <Text style={styles.loginLinkText}>
+                    Já tem uma conta?{" "}
+                    <Text style={styles.loginLinkHighlight}>Faça login</Text>
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -467,15 +678,55 @@ const styles = StyleSheet.create({
   background: {
     flex: 1,
     backgroundColor: COLORS.primaryBrown,
+    overflow: "hidden",
+  },
+
+  circleTop: {
+    position: "absolute",
+    top: -80,
+    right: -60,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: "rgba(227, 218, 201, 0.08)",
+  },
+
+  circleBottom: {
+    position: "absolute",
+    bottom: -90,
+    left: -70,
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    backgroundColor: "rgba(255, 193, 7, 0.08)",
   },
 
   header: {
-    height: 70,
-    top: -10,
+    height: 64,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
+  },
+
+  headerButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(227, 218, 201, 0.14)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  headerTitle: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: COLORS.secondaryBeige,
+    letterSpacing: 0.4,
+  },
+
+  headerTitleHighlight: {
+    color: COLORS.yellowIcon,
   },
 
   loginArea: {
@@ -485,91 +736,159 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     justifyContent: "center",
-    paddingVertical: 16,
+    paddingHorizontal: 18,
+    paddingTop: 8,
+    paddingBottom: 24,
   },
 
   loginCard: {
+    width: "100%",
+    maxWidth: 480,
+    alignSelf: "center",
     backgroundColor: COLORS.secondaryBeige,
-    marginHorizontal: 30,
-    paddingHorizontal: 24,
-    paddingTop: 32,
-    paddingBottom: 30,
-    borderRadius: 36,
+    borderRadius: 28,
+    paddingHorizontal: 22,
+    paddingTop: 24,
+    paddingBottom: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+
+  logoBadge: {
+    alignSelf: "center",
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: COLORS.primaryBrown,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
   },
 
   title: {
     textAlign: "center",
-    fontSize: 30,
+    fontSize: 26,
     fontWeight: "900",
-    color: "#000000",
+    color: COLORS.textDark,
   },
 
-  titleHighlight: {
+  subtitle: {
     textAlign: "center",
-    fontSize: 30,
-    fontWeight: "900",
+    fontSize: 13,
+    lineHeight: 19,
     color: COLORS.primaryBrown,
-    marginTop: 2,
-    marginBottom: 28,
+    marginTop: 6,
+    marginBottom: 22,
+    paddingHorizontal: 8,
   },
 
   form: {
     width: "100%",
   },
 
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 14,
+  },
+
+  sectionHeaderSpaced: {
+    marginTop: 10,
+  },
+
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: COLORS.primaryBrown,
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+  },
+
   label: {
-    fontSize: 14,
-    color: "#000000",
+    fontSize: 13,
+    fontWeight: "600",
+    color: COLORS.textDark,
     marginBottom: 6,
+    marginLeft: 4,
+  },
+
+  inputWrapper: {
+    height: 50,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#D8CE8D",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "transparent",
+    paddingHorizontal: 14,
+    marginBottom: 14,
+  },
+
+  inputWrapperFocused: {
+    borderColor: COLORS.primaryBrown,
+  },
+
+  inputWrapperError: {
+    borderColor: ERROR_COLOR,
+  },
+
+  inputIcon: {
+    marginRight: 10,
   },
 
   input: {
-    height: 40,
-    backgroundColor: "#D8CE8D",
-    borderRadius: 25,
-    paddingHorizontal: 18,
+    flex: 1,
+    height: "100%",
+    paddingHorizontal: 0,
+    paddingVertical: 0,
     fontSize: 15,
-    marginBottom: 12,
-  },
-
-  inputError: {
-    borderWidth: 1,
-    borderColor: ERROR_COLOR,
+    color: COLORS.textDark,
   },
 
   fieldError: {
     color: ERROR_COLOR,
     fontSize: 12,
-    marginTop: -6,
+    marginTop: -8,
     marginBottom: 12,
+    marginLeft: 4,
   },
 
-  formError: {
-    color: ERROR_COLOR,
-    fontSize: 13,
-    textAlign: "center",
+  formErrorBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "rgba(179, 38, 30, 0.08)",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     marginBottom: 16,
   },
 
-  loginButton: {
-    alignSelf: "flex-start",
-    marginTop: 0,
-    marginBottom: 30,
-  },
-
-  registerText: {
-    fontSize: 11,
-    color: COLORS.primaryBrown,
-    textDecorationLine: "underline",
+  formError: {
+    flex: 1,
+    color: ERROR_COLOR,
+    fontSize: 13,
+    lineHeight: 18,
   },
 
   registerButton: {
-    height: 48,
-    backgroundColor: COLORS.yellowIcon,
-    borderRadius: 25,
+    height: 52,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginHorizontal: 5,
+    gap: 8,
+    backgroundColor: COLORS.yellowIcon,
+    borderRadius: 16,
+    marginTop: 4,
+    shadowColor: COLORS.primaryBrown,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
 
   registerButtonDisabled: {
@@ -577,8 +896,25 @@ const styles = StyleSheet.create({
   },
 
   registerButtonText: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "900",
-    color: "#000000",
+    color: COLORS.textDark,
+    letterSpacing: 0.5,
+  },
+
+  loginLink: {
+    alignSelf: "center",
+    marginTop: 18,
+    paddingVertical: 4,
+  },
+
+  loginLinkText: {
+    fontSize: 13,
+    color: COLORS.primaryBrown,
+  },
+
+  loginLinkHighlight: {
+    fontWeight: "800",
+    textDecorationLine: "underline",
   },
 });
