@@ -20,6 +20,62 @@ import { Toast, type ToastType } from "../components/Toast";
 import { COLORS } from "../constants/theme";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL?.replace(/\/+$/, "");
+const ERROR_COLOR = "#B3261E";
+
+type FieldName =
+  | "firstName"
+  | "lastName"
+  | "username"
+  | "email"
+  | "password"
+  | "confirmPassword";
+
+type FieldErrors = Partial<Record<FieldName, string>>;
+
+interface RegisterFormData {
+  firstName: string;
+  lastName: string;
+  username: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+}
+
+function validateRegisterData(data: RegisterFormData): FieldErrors {
+  const errors: FieldErrors = {};
+
+  if (!data.firstName) {
+    errors.firstName = "Informe o primeiro nome.";
+  }
+
+  if (!data.lastName) {
+    errors.lastName = "Informe o último nome.";
+  }
+
+  if (!data.username) {
+    errors.username = "Informe o nome de usuário.";
+  } else if (data.username.length < 3) {
+    errors.username = "O nome de usuário deve ter pelo menos 3 caracteres.";
+  }
+
+  if (!data.email) {
+    errors.email = "Informe o e-mail.";
+  }
+
+  if (!data.password) {
+    errors.password = "Informe a senha.";
+  } else if (data.password.length < 6) {
+    errors.password = "A senha deve ter pelo menos 6 caracteres.";
+  }
+
+  if (!data.confirmPassword) {
+    errors.confirmPassword = "Confirme a senha.";
+  } else if (data.password !== data.confirmPassword) {
+    errors.confirmPassword = "As senhas não coincidem.";
+  }
+
+  return errors;
+}
 
 async function getRegisterErrorMessage(response: Response) {
   const fallback = `Não foi possível realizar o cadastro (${response.status}).`;
@@ -83,6 +139,8 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [formError, setFormError] = useState("");
   const [toast, setToast] = useState<{
     type: ToastType;
     message: string;
@@ -101,10 +159,22 @@ export default function RegisterScreen() {
     setToast({ type, message });
   }, []);
 
+  function clearFieldError(field: FieldName) {
+    setFieldErrors((current) => {
+      if (!current[field]) return current;
+
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+
+    setFormError("");
+  }
+
   async function handleRegister() {
     if (isSubmitting) return;
 
-    const data = {
+    const data: RegisterFormData = {
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       username: username.trim(),
@@ -113,35 +183,15 @@ export default function RegisterScreen() {
       confirmPassword,
     };
 
-    if (
-      !data.firstName ||
-      !data.lastName ||
-      !data.username ||
-      !data.email ||
-      !data.password ||
-      !data.confirmPassword
-    ) {
-      showToast("error", "Preencha todos os campos obrigatórios.");
-      return;
-    }
+    const errors = validateRegisterData(data);
 
-    if (data.username.length < 3) {
-      showToast("error", "O nome de usuário deve ter pelo menos 3 caracteres.");
-      return;
-    }
+    setFieldErrors(errors);
+    setFormError("");
 
-    if (data.password.length < 6) {
-      showToast("error", "A senha deve ter pelo menos 6 caracteres.");
-      return;
-    }
-
-    if (data.password !== data.confirmPassword) {
-      showToast("error", "As senhas não coincidem.");
-      return;
-    }
+    if (Object.keys(errors).length > 0) return;
 
     if (!API_URL) {
-      showToast("error", "A URL da API não foi configurada no arquivo .env.");
+      setFormError("A URL da API não foi configurada no arquivo .env.");
       return;
     }
 
@@ -167,8 +217,7 @@ export default function RegisterScreen() {
       const message = await getRegisterSuccessMessage(response);
       showToast("success", message);
     } catch {
-      showToast(
-        "error",
+      setFormError(
         "Não foi possível conectar à API. Verifique sua conexão e tente novamente.",
       );
     } finally {
@@ -224,48 +273,78 @@ export default function RegisterScreen() {
                 <Text style={styles.label}>Primeiro nome:</Text>
                 <TextInput
                   ref={firstNameInput}
-                  style={styles.input}
+                  style={[
+                    styles.input,
+                    !!fieldErrors.firstName && styles.inputError,
+                  ]}
                   value={firstName}
-                  onChangeText={setFirstName}
+                  onChangeText={(value) => {
+                    setFirstName(value);
+                    clearFieldError("firstName");
+                  }}
                   autoCapitalize="words"
                   maxLength={100}
                   returnKeyType="next"
                   blurOnSubmit={false}
                   onSubmitEditing={() => lastNameInput.current?.focus()}
                 />
+                {!!fieldErrors.firstName && (
+                  <Text style={styles.fieldError}>{fieldErrors.firstName}</Text>
+                )}
 
                 <Text style={styles.label}>Último nome:</Text>
                 <TextInput
                   ref={lastNameInput}
-                  style={styles.input}
+                  style={[
+                    styles.input,
+                    !!fieldErrors.lastName && styles.inputError,
+                  ]}
                   value={lastName}
-                  onChangeText={setLastName}
+                  onChangeText={(value) => {
+                    setLastName(value);
+                    clearFieldError("lastName");
+                  }}
                   autoCapitalize="words"
                   maxLength={100}
                   returnKeyType="next"
                   blurOnSubmit={false}
                   onSubmitEditing={() => usernameInput.current?.focus()}
                 />
+                {!!fieldErrors.lastName && (
+                  <Text style={styles.fieldError}>{fieldErrors.lastName}</Text>
+                )}
 
                 <Text style={styles.label}>Username:</Text>
                 <TextInput
                   ref={usernameInput}
-                  style={styles.input}
+                  style={[
+                    styles.input,
+                    !!fieldErrors.username && styles.inputError,
+                  ]}
                   value={username}
-                  onChangeText={setUsername}
+                  onChangeText={(value) => {
+                    setUsername(value);
+                    clearFieldError("username");
+                  }}
                   autoCapitalize="none"
                   maxLength={100}
                   returnKeyType="next"
                   blurOnSubmit={false}
                   onSubmitEditing={() => emailInput.current?.focus()}
                 />
+                {!!fieldErrors.username && (
+                  <Text style={styles.fieldError}>{fieldErrors.username}</Text>
+                )}
 
                 <Text style={styles.label}>E-mail:</Text>
                 <TextInput
                   ref={emailInput}
-                  style={styles.input}
+                  style={[styles.input, !!fieldErrors.email && styles.inputError]}
                   value={email}
-                  onChangeText={setEmail}
+                  onChangeText={(value) => {
+                    setEmail(value);
+                    clearFieldError("email");
+                  }}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoComplete="email"
@@ -274,13 +353,23 @@ export default function RegisterScreen() {
                   blurOnSubmit={false}
                   onSubmitEditing={() => passwordInput.current?.focus()}
                 />
+                {!!fieldErrors.email && (
+                  <Text style={styles.fieldError}>{fieldErrors.email}</Text>
+                )}
 
                 <Text style={styles.label}>Senha:</Text>
                 <TextInput
                   ref={passwordInput}
-                  style={styles.input}
+                  style={[
+                    styles.input,
+                    !!fieldErrors.password && styles.inputError,
+                  ]}
                   value={password}
-                  onChangeText={setPassword}
+                  onChangeText={(value) => {
+                    setPassword(value);
+                    clearFieldError("password");
+                    clearFieldError("confirmPassword");
+                  }}
                   secureTextEntry
                   textContentType="newPassword"
                   autoCapitalize="none"
@@ -289,13 +378,22 @@ export default function RegisterScreen() {
                   blurOnSubmit={false}
                   onSubmitEditing={() => confirmPasswordInput.current?.focus()}
                 />
+                {!!fieldErrors.password && (
+                  <Text style={styles.fieldError}>{fieldErrors.password}</Text>
+                )}
 
                 <Text style={styles.label}>Confirme a senha:</Text>
                 <TextInput
                   ref={confirmPasswordInput}
-                  style={styles.input}
+                  style={[
+                    styles.input,
+                    !!fieldErrors.confirmPassword && styles.inputError,
+                  ]}
                   value={confirmPassword}
-                  onChangeText={setConfirmPassword}
+                  onChangeText={(value) => {
+                    setConfirmPassword(value);
+                    clearFieldError("confirmPassword");
+                  }}
                   secureTextEntry
                   textContentType="newPassword"
                   autoCapitalize="none"
@@ -303,6 +401,15 @@ export default function RegisterScreen() {
                   returnKeyType="done"
                   onSubmitEditing={handleRegister}
                 />
+                {!!fieldErrors.confirmPassword && (
+                  <Text style={styles.fieldError}>
+                    {fieldErrors.confirmPassword}
+                  </Text>
+                )}
+
+                {!!formError && (
+                  <Text style={styles.formError}>{formError}</Text>
+                )}
 
                 <TouchableOpacity
                   onPress={() => router.push("/login")}
@@ -423,6 +530,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     fontSize: 15,
     marginBottom: 12,
+  },
+
+  inputError: {
+    borderWidth: 1,
+    borderColor: ERROR_COLOR,
+  },
+
+  fieldError: {
+    color: ERROR_COLOR,
+    fontSize: 12,
+    marginTop: -6,
+    marginBottom: 12,
+  },
+
+  formError: {
+    color: ERROR_COLOR,
+    fontSize: 13,
+    textAlign: "center",
+    marginBottom: 16,
   },
 
   loginButton: {
