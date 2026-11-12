@@ -1,19 +1,75 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useRef, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import {
+  ActivityIndicator,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
+  type TextInputInstance,
   TouchableOpacity,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MenuModal } from "../components/MenuModal";
+import { Toast, type ToastType } from "../components/Toast";
 import { COLORS } from "../constants/theme";
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL?.replace(/\/+$/, "");
+
+async function getRegisterErrorMessage(response: Response) {
+  const fallback = `Não foi possível realizar o cadastro (${response.status}).`;
+
+  if (response.status === 429) {
+    return "Muitas tentativas. Aguarde um momento e tente novamente.";
+  }
+
+  if (response.status >= 500) {
+    return "Não foi possível realizar o cadastro. Tente novamente mais tarde.";
+  }
+
+  try {
+    const body = (await response.json()) as {
+      mensagem?: unknown;
+      erro?: unknown;
+      message?: unknown;
+    };
+
+    const message = body.mensagem ?? body.erro ?? body.message;
+
+    if (Array.isArray(message)) {
+      return message
+        .filter((item): item is string => typeof item === "string")
+        .join("\n");
+    }
+
+    if (typeof message === "string" && message.trim()) {
+      return message;
+    }
+  } catch {
+    return fallback;
+  }
+
+  return fallback;
+}
+
+async function getRegisterSuccessMessage(response: Response) {
+  try {
+    const body = (await response.json()) as { mensagem?: unknown };
+
+    if (typeof body.mensagem === "string" && body.mensagem.trim()) {
+      return body.mensagem;
+    }
+  } catch {
+    return "Usuário cadastrado com sucesso!";
+  }
+
+  return "Usuário cadastrado com sucesso!";
+}
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -26,13 +82,104 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [toast, setToast] = useState<{
+    type: ToastType;
+    message: string;
+  } | null>(null);
 
-  const firstNameInput = useRef<TextInput>(null);
-  const lastNameInput = useRef<TextInput>(null);
-  const usernameInput = useRef<TextInput>(null);
-  const emailInput = useRef<TextInput>(null);
-  const passwordInput = useRef<TextInput>(null);
-  const confirmPasswordInput = useRef<TextInput>(null);
+  const firstNameInput = useRef<TextInputInstance>(null);
+  const lastNameInput = useRef<TextInputInstance>(null);
+  const usernameInput = useRef<TextInputInstance>(null);
+  const emailInput = useRef<TextInputInstance>(null);
+  const passwordInput = useRef<TextInputInstance>(null);
+  const confirmPasswordInput = useRef<TextInputInstance>(null);
+
+  const closeToast = useCallback(() => setToast(null), []);
+
+  const showToast = useCallback((type: ToastType, message: string) => {
+    setToast({ type, message });
+  }, []);
+
+  async function handleRegister() {
+    if (isSubmitting) return;
+
+    const data = {
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      username: username.trim(),
+      email: email.trim(),
+      password,
+      confirmPassword,
+    };
+
+    if (
+      !data.firstName ||
+      !data.lastName ||
+      !data.username ||
+      !data.email ||
+      !data.password ||
+      !data.confirmPassword
+    ) {
+      showToast("error", "Preencha todos os campos obrigatórios.");
+      return;
+    }
+
+    if (data.username.length < 3) {
+      showToast("error", "O nome de usuário deve ter pelo menos 3 caracteres.");
+      return;
+    }
+
+    if (data.password.length < 6) {
+      showToast("error", "A senha deve ter pelo menos 6 caracteres.");
+      return;
+    }
+
+    if (data.password !== data.confirmPassword) {
+      showToast("error", "As senhas não coincidem.");
+      return;
+    }
+
+    if (!API_URL) {
+      showToast("error", "A URL da API não foi configurada no arquivo .env.");
+      return;
+    }
+
+    Keyboard.dismiss();
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch(`${API_URL}/api/v1/credentials/register`, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const message = await getRegisterErrorMessage(response);
+        showToast("error", message);
+        return;
+      }
+
+      const message = await getRegisterSuccessMessage(response);
+      showToast("success", message);
+    } catch {
+      showToast(
+        "error",
+        "Não foi possível conectar à API. Verifique sua conexão e tente novamente.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  function goToLogin() {
+    closeToast();
+    router.replace("/login");
+  }
 
   return (
     <View
@@ -106,7 +253,7 @@ export default function RegisterScreen() {
                   style={styles.input}
                   value={username}
                   onChangeText={setUsername}
-                  autoCapitalize="words"
+                  autoCapitalize="none"
                   maxLength={100}
                   returnKeyType="next"
                   blurOnSubmit={false}
@@ -137,7 +284,7 @@ export default function RegisterScreen() {
                   secureTextEntry
                   textContentType="newPassword"
                   autoCapitalize="none"
-                  maxLength={20}
+                  maxLength={100}
                   returnKeyType="next"
                   blurOnSubmit={false}
                   onSubmitEditing={() => confirmPasswordInput.current?.focus()}
@@ -152,8 +299,9 @@ export default function RegisterScreen() {
                   secureTextEntry
                   textContentType="newPassword"
                   autoCapitalize="none"
-                  maxLength={20}
+                  maxLength={100}
                   returnKeyType="done"
+                  onSubmitEditing={handleRegister}
                 />
 
                 <TouchableOpacity
@@ -166,12 +314,18 @@ export default function RegisterScreen() {
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={styles.registerButton}
-                  onPress={() => {
-                    // lógica de registro
-                  }}
+                  style={[
+                    styles.registerButton,
+                    isSubmitting && styles.registerButtonDisabled,
+                  ]}
+                  onPress={handleRegister}
+                  disabled={isSubmitting}
                 >
-                  <Text style={styles.registerButtonText}>REGISTRAR</Text>
+                  {isSubmitting ? (
+                    <ActivityIndicator color="#000000" />
+                  ) : (
+                    <Text style={styles.registerButtonText}>REGISTRAR</Text>
+                  )}
                 </TouchableOpacity>
               </View>
             </View>
@@ -182,6 +336,16 @@ export default function RegisterScreen() {
       <MenuModal
         visible={isMenuVisible}
         onClose={() => setIsMenuVisible(false)}
+      />
+
+      <Toast
+        visible={toast !== null}
+        type={toast?.type}
+        message={toast?.message ?? ""}
+        actionLabel={toast?.type === "success" ? "IR PARA LOGIN" : undefined}
+        onAction={goToLogin}
+        onClose={closeToast}
+        duration={toast?.type === "error" ? 5000 : 0}
       />
     </View>
   );
@@ -280,6 +444,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginHorizontal: 5,
+  },
+
+  registerButtonDisabled: {
+    opacity: 0.7,
   },
 
   registerButtonText: {
