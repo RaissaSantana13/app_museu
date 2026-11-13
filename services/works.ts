@@ -1,3 +1,6 @@
+import type { ImageSourcePropType } from "react-native";
+import { ARTWORKS_DATA } from "../constants/data";
+
 export interface ArtworkSummary {
   idArtwork: number;
   title: string;
@@ -24,6 +27,11 @@ const WORKS_PAGE_SIZE = 20;
 
 export function normalizeTitle(title: string) {
   return title.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
+export function getLocalWorkCover(title: string): ImageSourcePropType | undefined {
+  const normalizedTitle = normalizeTitle(title);
+  return ARTWORKS_DATA.find((work) => normalizeTitle(work.title) === normalizedTitle)?.img;
 }
 
 async function fetchWorksPage(
