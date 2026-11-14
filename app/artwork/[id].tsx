@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Image,
   ScrollView,
   StyleSheet,
@@ -12,29 +13,144 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { MenuModal } from "../../components/MenuModal";
-import { ARTWORKS_DATA } from "../../constants/data";
 import { COLORS } from "../../constants/theme";
+import {
+  getLocalWorkCover,
+  getWorkById,
+  listWorkCovers,
+  type ArtworkDetails,
+} from "../../services/works";
 
 export default function ArtworkDetailsScreen() {
   const { id } = useLocalSearchParams<{ id?: string | string[] }>();
+  const artworkId = Array.isArray(id) ? id[0] : id;
+
+  return (
+    <ArtworkDetailsContent
+      key={artworkId ?? "invalid"}
+      artworkId={artworkId}
+    />
+  );
+}
+
+interface ArtworkDetailsContentProps {
+  artworkId?: string;
+}
+
+function ArtworkDetailsContent({
+  artworkId,
+}: ArtworkDetailsContentProps) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
   const [isMenuVisible, setIsMenuVisible] = useState(false);
+  const [artwork, setArtwork] = useState<ArtworkDetails | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
-  // O ID recebido corresponde ao ID cadastrado no data.ts.
-  const artworkId = Array.isArray(id) ? id[0] : id;
+  const [coverUrl, setCoverUrl] = useState<string | null>(null);
+  const [loadingCover, setLoadingCover] = useState(false);
+  const [localCoverFailed, setLocalCoverFailed] = useState(false);
 
-  const artwork = ARTWORKS_DATA.find(
-    (item) => item.id === artworkId,
-  );
+  useEffect(() => {
+    const controller = new AbortController();
+    const { signal } = controller;
+
+    async function loadArtwork() {
+      try {
+        const numericId =
+          artworkId && /^\d+$/.test(artworkId)
+            ? Number(artworkId)
+            : NaN;
+
+        const work = await getWorkById(numericId, signal);
+
+        if (signal.aborted) return;
+
+        setArtwork(work);
+
+        // A API responde com 404 quando a obra não existe.
+        if (!work) return;
+
+        // Libera os textos enquanto consulta a imagem.
+        setLoadingCover(true);
+        setLoading(false);
+
+        try {
+          const covers = await listWorkCovers(
+            [work.idArtwork],
+            signal,
+          );
+
+          if (signal.aborted) return;
+
+          // Sem capa cadastrada, utiliza a imagem local.
+          setCoverUrl(covers[work.idArtwork] ?? null);
+        } catch (cause: unknown) {
+          if (signal.aborted) return;
+
+          console.warn("Não foi possível buscar a capa:", cause);
+          setCoverUrl(null);
+        } finally {
+          if (!signal.aborted) {
+            setLoadingCover(false);
+          }
+        }
+      } catch (cause: unknown) {
+        if (signal.aborted) return;
+
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : "Não foi possível carregar os detalhes da obra.",
+        );
+      } finally {
+        if (!signal.aborted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadArtwork();
+
+    return () => controller.abort();
+  }, [artworkId, attempt]);
 
   function handleBack() {
     if (router.canGoBack()) {
       router.back();
     } else {
-      // Permite retornar mesmo ao abrir a tela por um link direto.
       router.replace("/collection/collection");
+    }
+  }
+
+  function retry() {
+    setError(null);
+    setArtwork(null);
+    setCoverUrl(null);
+    setLoadingCover(false);
+    setLocalCoverFailed(false);
+    setLoading(true);
+    setAttempt((current) => current + 1);
+  }
+
+  const localCover =
+    artwork && !localCoverFailed
+      ? getLocalWorkCover(artwork.title)
+      : undefined;
+
+  const coverSource = coverUrl
+    ? { uri: coverUrl }
+    : localCover;
+
+  function handleImageError() {
+    if (coverUrl) {
+      // Se a imagem remota falhar, tenta a imagem local.
+      setCoverUrl(null);
+    } else {
+      // Se a imagem local também falhar, mostra o aviso.
+      setLocalCoverFailed(true);
     }
   }
 
@@ -54,7 +170,7 @@ export default function ArtworkDetailsScreen() {
         showsVerticalScrollIndicator={false}
         bounces={false}
       >
-        {/* Mesmo padrão visual da tela de detalhes do evento. */}
+        {/* Cabeçalho */}
         <View style={styles.header}>
           <View style={styles.headerTop}>
             <TouchableOpacity
@@ -98,37 +214,99 @@ export default function ArtworkDetailsScreen() {
           </View>
         </View>
 
-        {artwork ? (
+        {loading ? (
+          <View style={styles.emptyContainer}>
+            <ActivityIndicator
+              size="large"
+              color={COLORS.primaryBrown}
+              accessibilityLabel="Carregando detalhes da obra"
+            />
+
+            <Text style={styles.loadingText}>
+              Carregando detalhes da obra...
+            </Text>
+          </View>
+        ) : error ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons
+              name="alert-circle-outline"
+              size={48}
+              color={COLORS.primaryBrown}
+            />
+
+            <Text style={styles.emptyTitle}>
+              Não foi possível carregar
+            </Text>
+
+            <Text
+              style={styles.emptyDescription}
+              accessibilityRole="alert"
+            >
+              {error}
+            </Text>
+
+            <TouchableOpacity
+              style={styles.collectionButton}
+              onPress={retry}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+            >
+              <Text style={styles.collectionButtonText}>
+                Tentar novamente
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : artwork ? (
           <View style={styles.contentWrapper}>
-            {/* contain mantém a peça inteira visível. */}
+            {/* Imagem da API, com alternativa local */}
             <View style={styles.imageContainer}>
-              <Image
-                source={artwork.img}
-                style={styles.artworkImage}
-                resizeMode="contain"
-                accessible
-                accessibilityLabel={`Imagem de ${artwork.title}`}
-              />
+              {loadingCover ? (
+                <View style={styles.imagePlaceholder}>
+                  <ActivityIndicator
+                    color={COLORS.primaryBrown}
+                    accessibilityLabel="Carregando imagem da obra"
+                  />
+                </View>
+              ) : coverSource ? (
+                <Image
+                  key={coverUrl ?? "local"}
+                  source={coverSource}
+                  style={styles.artworkImage}
+                  resizeMode="contain"
+                  accessible
+                  accessibilityLabel={`Imagem de ${artwork.title}`}
+                  onError={handleImageError}
+                />
+              ) : (
+                <View style={styles.imagePlaceholder}>
+                  <Ionicons
+                    name="image-outline"
+                    size={48}
+                    color={COLORS.primaryBrown}
+                  />
+
+                  <Text style={styles.placeholderText}>
+                    Imagem indisponível
+                  </Text>
+                </View>
+              )}
             </View>
 
             <Text style={styles.title} accessibilityRole="header">
               {artwork.title}
             </Text>
 
-            {artwork.categories.length > 0 && (
+            {!!artwork.type?.trim() && (
               <View style={styles.tagsContainer}>
-                {artwork.categories.map((category) => (
-                  <View key={category} style={styles.tag}>
-                    <Text style={styles.tagText}>{category}</Text>
-                  </View>
-                ))}
+                <View style={styles.tag}>
+                  <Text style={styles.tagText}>
+                    {artwork.type}
+                  </Text>
+                </View>
               </View>
             )}
 
-            <Text style={styles.description}>
-              {artwork.description}
-            </Text>
-
+            {/* Ficha técnica */}
             <View style={styles.detailsBox}>
               <Text
                 style={styles.sectionTitle}
@@ -137,16 +315,27 @@ export default function ArtworkDetailsScreen() {
                 Ficha técnica
               </Text>
 
-              <DetailItem label="Período" value={artwork.year} />
+              <DetailItem
+                label="Ano de criação"
+                value={
+                  artwork.creationYear != null
+                    ? String(artwork.creationYear)
+                    : undefined
+                }
+              />
 
               <DetailItem
                 label="Artista / fabricante"
-                value={artwork.artist}
+                value={artwork.artistName ?? undefined}
               />
 
-              <DetailItem label="Material" value={artwork.material} />
+              <DetailItem
+                label="Técnica"
+                value={artwork.technique ?? undefined}
+              />
             </View>
 
+            {/* Descrição recebida da API */}
             <View style={styles.aboutSection}>
               <Text
                 style={styles.sectionTitle}
@@ -156,7 +345,8 @@ export default function ArtworkDetailsScreen() {
               </Text>
 
               <Text style={styles.fullDescription}>
-                {artwork.fullDescription}
+                {artwork.description?.trim() ||
+                  "Descrição não informada."}
               </Text>
             </View>
           </View>
@@ -179,7 +369,9 @@ export default function ArtworkDetailsScreen() {
 
             <TouchableOpacity
               style={styles.collectionButton}
-              onPress={() => router.replace("/collection/collection")}
+              onPress={() =>
+                router.replace("/collection/collection")
+              }
               activeOpacity={0.85}
               accessibilityRole="button"
             >
@@ -293,6 +485,17 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
   },
+  imagePlaceholder: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  placeholderText: {
+    fontSize: 14,
+    color: COLORS.textDark,
+    textAlign: "center",
+    marginTop: 8,
+  },
   title: {
     fontSize: 24,
     fontWeight: "bold",
@@ -316,12 +519,6 @@ const styles = StyleSheet.create({
     color: COLORS.textDark,
     fontWeight: "bold",
     fontSize: 12,
-  },
-  description: {
-    fontSize: 14,
-    color: COLORS.textDark,
-    lineHeight: 22,
-    marginBottom: 20,
   },
 
   // Ficha técnica
@@ -355,7 +552,7 @@ const styles = StyleSheet.create({
     lineHeight: 21,
   },
 
-  // Descrição completa
+  // Descrição
   aboutSection: {
     borderTopWidth: 1,
     borderTopColor: "rgba(0,0,0,0.1)",
@@ -367,12 +564,18 @@ const styles = StyleSheet.create({
     lineHeight: 23,
   },
 
-  // Obra inexistente
+  // Carregamento, erro e obra inexistente
   emptyContainer: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
     padding: 24,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: COLORS.textDark,
+    textAlign: "center",
+    marginTop: 16,
   },
   emptyTitle: {
     fontSize: 22,
