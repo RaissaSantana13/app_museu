@@ -34,6 +34,17 @@ export function MenuModal({ visible, onClose }: MenuModalProps) {
           <View style={styles.menuItems}>
             <TouchableOpacity
               style={styles.menuItem}
+              accessibilityRole="button"
+              onPress={() => {
+              onClose();
+              router.navigate("/");
+              }}
+            >
+              <Text style={styles.menuText}>Home</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.menuItem}
               onPress={() => {
                 onClose();
                 router.push("/collection/collection");
