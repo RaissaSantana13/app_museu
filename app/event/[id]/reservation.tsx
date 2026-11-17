@@ -1,64 +1,47 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { MenuModal } from "../../../components/MenuModal";
 import {
-  GROUPS_DATA,
-  REPRESENTATIVES_DATA,
-  SCHOOLS_DATA,
   type EscolaDetalhes,
+  type RepresentanteDetalhes,
   type TurmaDetalhes,
 } from "../../../constants/data";
 import { COLORS } from "../../../constants/theme";
+import {
+  buildSchedules,
+  createEventBooking,
+  createEventBookingGroup,
+  createOrFindVisitor,
+  getEvent,
+  listEventBookings,
+  listSchoolGroups,
+  listSchools,
+  type EventSchedule,
+} from "../../../services/events";
 
 type ReservationType = "individual" | "group";
 
-interface Schedule {
-  id: string;
-  date: string;
-  details: string;
-}
-
 /*
-  Dados temporários.
-
-  Quando a API existir, esses dados deverão vir do backend.
-
+  Dados do evento vindos da API (GET /api/v1/events/{id}).
   Os dados que o usuário precisa preencher NÃO começam preenchidos.
 */
-const EVENT_DATA = {
-  title: "Um dia muito especial",
-  location: "Museu de Birigui",
-  availableSpots: 30,
-
-  schedules: [
-    {
-      id: "1",
-      date: "10/05",
-      details: "Quarta, às 19h",
-    },
-    {
-      id: "2",
-      date: "11/05",
-      details: "Quinta, às 19h",
-    },
-    {
-      id: "3",
-      date: "12/05",
-      details: "Sexta, às 19h",
-    },
-  ] as Schedule[],
-};
+interface EventInfo {
+  title: string;
+  location: string;
+  schedules: EventSchedule[];
+}
 
 export default function ReservationScreen() {
   const { id } = useLocalSearchParams();
@@ -66,6 +49,75 @@ export default function ReservationScreen() {
   const insets = useSafeAreaInsets();
 
   const [isMenuVisible, setIsMenuVisible] = useState(false);
+
+  const [eventInfo, setEventInfo] = useState<EventInfo>({
+    title: "",
+    location: "",
+    schedules: [],
+  });
+  const [spotsLimit, setSpotsLimit] = useState(Infinity);
+  const [schools, setSchools] = useState<EscolaDetalhes[]>([]);
+  const [loadingEvent, setLoadingEvent] = useState(true);
+  const [loadError, setLoadError] = useState("");
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function load() {
+      try {
+        setLoadingEvent(true);
+        setLoadError("");
+
+        const event = await getEvent(String(id), controller.signal);
+        setEventInfo({
+          title: event.title,
+          location: event.location?.trim() || "Museu de Birigui",
+          schedules: buildSchedules(event),
+        });
+        const maxSpots = event.maxCapacity ?? event.max_capacity ?? Infinity;
+        setSpotsLimit(maxSpots);
+
+        if (Number.isFinite(maxSpots)) {
+          try {
+            const bookings = await listEventBookings(
+              String(id),
+              controller.signal,
+            );
+            const bookedCount = bookings
+              .filter((b) => b.status !== "CANCELADO")
+              .reduce(
+                (sum, b) => sum + (Number(b.expected_participant_count) || 0),
+                0,
+              );
+            setSpotsLimit(Math.max(0, maxSpots - bookedCount));
+          } catch {}
+        }
+
+        try {
+          const apiSchools = await listSchools(controller.signal);
+          setSchools(
+            apiSchools.map((school) => ({
+              id: String(school.idSchool),
+              name: school.name,
+              cnpj: school.cnpj ?? "",
+            })),
+          );
+        } catch {
+          setSchools([]);
+        }
+      } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") return;
+        setLoadError(
+          err instanceof Error ? err.message : "Erro ao carregar o evento.",
+        );
+      } finally {
+        if (!controller.signal.aborted) setLoadingEvent(false);
+      }
+    }
+
+    load();
+    return () => controller.abort();
+  }, [id]);
 
   const [reservationType, setReservationType] =
     useState<ReservationType>("individual");
@@ -80,15 +132,24 @@ export default function ReservationScreen() {
   */
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [cpf, setCpf] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
 
   /*
     Grupo escolar
   */
-  const [selectedSchool, setSelectedSchool] = useState<EscolaDetalhes | null>(null);
+  const [selectedSchool, setSelectedSchool] = useState<EscolaDetalhes | null>(
+    null,
+  );
 
-  const [selectedGroup, setSelectedGroup] = useState<TurmaDetalhes | null>(null);
+  const [selectedGroup, setSelectedGroup] = useState<TurmaDetalhes | null>(
+    null,
+  );
+  const [availableGroups, setAvailableGroups] = useState<TurmaDetalhes[]>([]);
+  const [representativesMap, setRepresentativesMap] = useState<
+    Record<string, RepresentanteDetalhes>
+  >({});
 
   const [showSchools, setShowSchools] = useState(false);
   const [showGroups, setShowGroups] = useState(false);
@@ -100,39 +161,68 @@ export default function ReservationScreen() {
   */
   const [notes, setNotes] = useState("");
   const [formError, setFormError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const participantCount = Number(participants);
 
-  const selectedScheduleData = EVENT_DATA.schedules.find(
+  const selectedScheduleData = eventInfo.schedules.find(
     (schedule) => schedule.id === selectedSchedule,
   );
 
-  const availableGroups = GROUPS_DATA.filter(
-    (group) => group.schoolId === selectedSchool?.id,
-  );
-
-  const selectedRepresentative = REPRESENTATIVES_DATA.find(
-    (representative) => representative.id === selectedGroup?.representativeId,
-  );
+  const selectedRepresentative = selectedGroup
+    ? representativesMap[selectedGroup.representativeId]
+    : undefined;
 
   const notEnoughSpots =
     reservationType === "group" &&
     participants !== "" &&
-    participantCount > EVENT_DATA.availableSpots;
+    participantCount > spotsLimit;
 
   function handleReservationType(type: ReservationType) {
     setReservationType(type);
     setFormError("");
   }
 
-  function selectSchool(school: EscolaDetalhes) {
+  async function selectSchool(school: EscolaDetalhes) {
     setSelectedSchool(school);
-
-    // Se trocar de escola, remove a turma selecionada anteriormente.
     setSelectedGroup(null);
-
+    setAvailableGroups([]);
     setShowSchools(false);
     setShowGroups(false);
+
+    try {
+      const apiGroups = await listSchoolGroups(school.id);
+      const reps: Record<string, RepresentanteDetalhes> = {};
+      const mappedGroups: TurmaDetalhes[] = apiGroups.map((g) => {
+        const repId = g.representative
+          ? String(g.representative.idRepresentative)
+          : "";
+        if (g.representative?.usuario) {
+          const u = g.representative.usuario;
+          const repName =
+            u.nomeUsuario ||
+            `${u.firstName ?? ""} ${u.lastName ?? ""}`.trim() ||
+            "Representante";
+          reps[repId] = {
+            id: repId,
+            name: repName,
+            email: u.email ?? "",
+            phone: u.phone ?? "",
+          };
+        }
+        return {
+          id: String(g.idGroup),
+          schoolId: school.id,
+          name: g.groupName,
+          totalStudents: g.totalStudents ?? 0,
+          representativeId: repId,
+        };
+      });
+      setRepresentativesMap(reps);
+      setAvailableGroups(mappedGroups);
+    } catch {
+      setAvailableGroups([]);
+    }
   }
 
   function selectGroup(group: TurmaDetalhes) {
@@ -140,28 +230,45 @@ export default function ReservationScreen() {
     setShowGroups(false);
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
     setFormError("");
 
     /*
       Data e horário são obrigatórios
     */
-    if (!selectedSchedule) {
+    if (!selectedSchedule || !selectedScheduleData) {
       setFormError("Selecione uma data e horário.");
       return;
     }
+
+    const cleanCpf = cpf.replace(/\D/g, "");
 
     /*
       Validação individual
     */
     if (reservationType === "individual") {
-      if (!firstName.trim() || !lastName.trim() || !email.trim()) {
+      if (
+        !firstName.trim() ||
+        !lastName.trim() ||
+        !cleanCpf ||
+        !email.trim()
+      ) {
         setFormError("Preencha todos os campos obrigatórios.");
+        return;
+      }
+
+      if (cleanCpf.length !== 11) {
+        setFormError("Informe um CPF válido (11 dígitos).");
         return;
       }
 
       if (!email.includes("@")) {
         setFormError("Informe um e-mail válido.");
+        return;
+      }
+
+      if (spotsLimit < 1) {
+        setFormError("Não há vagas disponíveis para este evento.");
         return;
       }
     }
@@ -193,36 +300,118 @@ export default function ReservationScreen() {
       }
     }
 
-    /*
-      Por enquanto apenas navega para a confirmação.
+    try {
+      setSubmitting(true);
 
-      Quando houver API, aqui futuramente será feita a requisição
-      para criar a reserva.
-    */
-    router.push({
-      pathname: "/event/[id]/confirmation",
-      params: {
-        id: String(id),
+      let visitorId: number | undefined;
+      if (reservationType === "individual") {
+        const visitor = await createOrFindVisitor({
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          cpf: cleanCpf,
+          email: email.trim(),
+          ...(phone.trim() ? { phone: phone.trim() } : {}),
+        });
+        visitorId = visitor.idVisitor;
+      }
 
-        reservationType,
+      const booking = await createEventBooking({
+        id_event: Number(id),
+        ...(visitorId ? { id_visitor: visitorId } : {}),
+        ...(reservationType === "group" && selectedGroup
+          ? { id_group: Number(selectedGroup.id) }
+          : {}),
+        expected_participant_count:
+          reservationType === "group" ? participantCount : 1,
+        booking_date: selectedScheduleData.isoDateTime,
+        status: "PENDENTE",
+        ...(notes.trim() ? { notes: notes.trim() } : {}),
+      });
 
-        eventTitle: EVENT_DATA.title,
+      if (reservationType === "group" && selectedGroup && booking.id_booking) {
+        try {
+          await createEventBookingGroup(
+            booking.id_booking,
+            Number(selectedGroup.id),
+            [],
+          );
+        } catch {}
+      }
 
-        date: selectedScheduleData?.date ?? "",
-        schedule: selectedScheduleData?.details ?? "",
+      router.push({
+        pathname: "/event/[id]/confirmation",
+        params: {
+          id: String(id),
+          bookingId: String(booking.id_booking ?? ""),
+          bookingStatus: booking.status ?? "PENDENTE",
+          reservationType,
+          eventTitle: eventInfo.title,
+          date: selectedScheduleData.date,
+          schedule: selectedScheduleData.details,
+          visitorName:
+            reservationType === "individual"
+              ? `${firstName} ${lastName}`.trim()
+              : "",
+          school:
+            reservationType === "group" ? (selectedSchool?.name ?? "") : "",
+          group:
+            reservationType === "group" ? (selectedGroup?.name ?? "") : "",
+          participants: reservationType === "group" ? participants : "1",
+        },
+      });
+    } catch (err) {
+      setFormError(
+        err instanceof Error
+          ? err.message
+          : "Não foi possível registrar a reserva na API.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
-        visitorName:
-          reservationType === "individual"
-            ? `${firstName} ${lastName}`.trim()
-            : "",
-
-        school: reservationType === "group" ? (selectedSchool?.name ?? "") : "",
-
-        group: reservationType === "group" ? (selectedGroup?.name ?? "") : "",
-
-        participants: reservationType === "group" ? participants : "1",
-      },
-    });
+  if (loadingEvent || loadError) {
+    return (
+      <View
+        style={[
+          styles.mainContainer,
+          { paddingTop: insets.top, paddingBottom: insets.bottom },
+        ]}
+      >
+        <View
+          style={{
+            flex: 1,
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 24,
+            backgroundColor: COLORS.secondaryBeige,
+          }}
+        >
+          {loadingEvent ? (
+            <ActivityIndicator size="large" color={COLORS.primaryBrown} />
+          ) : (
+            <>
+              <Text
+                style={{
+                  color: COLORS.textDark,
+                  textAlign: "center",
+                  marginBottom: 16,
+                }}
+              >
+                {loadError}
+              </Text>
+              <TouchableOpacity onPress={() => router.back()}>
+                <Text
+                  style={{ color: COLORS.primaryBrown, fontWeight: "bold" }}
+                >
+                  Voltar
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+      </View>
+    );
   }
 
   return (
@@ -279,16 +468,18 @@ export default function ReservationScreen() {
             <Text style={styles.eventBadgeText}>EVENTO SELECIONADO</Text>
           </View>
 
-          <Text style={styles.eventTitle}>{EVENT_DATA.title}</Text>
+          <Text style={styles.eventTitle}>{eventInfo.title}</Text>
 
           <View style={styles.eventInfo}>
             <Ionicons name="location" size={15} color={COLORS.yellowIcon} />
 
-            <Text style={styles.eventInfoText}>{EVENT_DATA.location}</Text>
+            <Text style={styles.eventInfoText}>{eventInfo.location}</Text>
           </View>
 
           <Text style={styles.availableSpots}>
-            {EVENT_DATA.availableSpots} vagas disponíveis
+            {Number.isFinite(spotsLimit)
+              ? `${spotsLimit} vagas disponíveis`
+              : "Vagas sujeitas à disponibilidade"}
           </Text>
         </View>
 
@@ -296,7 +487,7 @@ export default function ReservationScreen() {
         <Text style={styles.sectionTitle}>Data e horário *</Text>
 
         <View style={styles.scheduleContainer}>
-          {EVENT_DATA.schedules.map((schedule) => {
+          {eventInfo.schedules.map((schedule) => {
             const isSelected = selectedSchedule === schedule.id;
 
             return (
@@ -405,6 +596,18 @@ export default function ReservationScreen() {
               placeholderTextColor="#8C765E"
             />
 
+            <Text style={styles.label}>CPF *</Text>
+
+            <TextInput
+              style={styles.input}
+              value={cpf}
+              onChangeText={setCpf}
+              placeholder="000.000.000-00"
+              placeholderTextColor="#8C765E"
+              keyboardType="number-pad"
+              maxLength={14}
+            />
+
             <Text style={styles.label}>E-mail *</Text>
 
             <TextInput
@@ -458,24 +661,29 @@ export default function ReservationScreen() {
 
             {showSchools && (
               <View style={styles.optionsContainer}>
-                {SCHOOLS_DATA.map((school) => (
-                  <TouchableOpacity
-                    key={school.id}
-                    style={styles.option}
-                    onPress={() => selectSchool(school)}
-                  >
-                    <Text style={styles.optionText}>{school.name}</Text>
-                  </TouchableOpacity>
-                ))}
+                {schools.length > 0 ? (
+                  schools.map((school) => (
+                    <TouchableOpacity
+                      key={school.id}
+                      style={styles.option}
+                      onPress={() => selectSchool(school)}
+                    >
+                      <Text style={styles.optionText}>{school.name}</Text>
+                    </TouchableOpacity>
+                  ))
+                ) : (
+                  <View style={styles.option}>
+                    <Text style={styles.placeholderText}>
+                      Nenhuma escola cadastrada na API.
+                    </Text>
+                  </View>
+                )}
               </View>
             )}
 
             {selectedSchool && (
               <Text style={styles.helperText}>CNPJ: {selectedSchool.cnpj}</Text>
             )}
-
-            {/* SOMENTE VISUAL */}
-            <Text style={styles.addSchool}>+ Cadastrar nova escola</Text>
 
             {/* TURMA */}
             <Text style={styles.label}>Grupo / Turma *</Text>
@@ -503,15 +711,23 @@ export default function ReservationScreen() {
 
             {showGroups && selectedSchool && (
               <View style={styles.optionsContainer}>
-                {availableGroups.map((group) => (
-                  <TouchableOpacity
-                    key={group.id}
-                    style={styles.option}
-                    onPress={() => selectGroup(group)}
-                  >
-                    <Text style={styles.optionText}>{group.name}</Text>
-                  </TouchableOpacity>
-                ))}
+                {availableGroups.length > 0 ? (
+                  availableGroups.map((group) => (
+                    <TouchableOpacity
+                      key={group.id}
+                      style={styles.option}
+                      onPress={() => selectGroup(group)}
+                    >
+                      <Text style={styles.optionText}>{group.name}</Text>
+                    </TouchableOpacity>
+                  ))
+                ) : (
+                  <View style={styles.option}>
+                    <Text style={styles.placeholderText}>
+                      Nenhuma turma cadastrada na API.
+                    </Text>
+                  </View>
+                )}
               </View>
             )}
 
@@ -570,7 +786,9 @@ export default function ReservationScreen() {
               </Text>
             ) : (
               <Text style={styles.helperText}>
-                {EVENT_DATA.availableSpots} vagas disponíveis
+                {Number.isFinite(spotsLimit)
+                  ? `${spotsLimit} vagas disponíveis`
+                  : "Vagas sujeitas à disponibilidade"}
               </Text>
             )}
           </>
@@ -599,7 +817,7 @@ export default function ReservationScreen() {
 
           <View style={styles.divider} />
 
-          <SummaryRow label="Evento" value={EVENT_DATA.title} />
+          <SummaryRow label="Evento" value={eventInfo.title} />
 
           <SummaryRow label="Data" value={selectedScheduleData?.date ?? "-"} />
 
@@ -644,16 +862,20 @@ export default function ReservationScreen() {
         <TouchableOpacity
           style={[
             styles.submitButton,
-            notEnoughSpots && styles.submitButtonDisabled,
+            (notEnoughSpots || submitting) && styles.submitButtonDisabled,
           ]}
-          disabled={notEnoughSpots}
+          disabled={notEnoughSpots || submitting}
           onPress={handleSubmit}
         >
-          <Text style={styles.submitButtonText}>
-            {reservationType === "group"
-              ? "Solicitar reserva do grupo"
-              : "Solicitar reserva"}
-          </Text>
+          {submitting ? (
+            <ActivityIndicator size="small" color={COLORS.yellowIcon} />
+          ) : (
+            <Text style={styles.submitButtonText}>
+              {reservationType === "group"
+                ? "Solicitar reserva do grupo"
+                : "Solicitar reserva"}
+            </Text>
+          )}
         </TouchableOpacity>
       </ScrollView>
 
@@ -963,13 +1185,6 @@ const styles = StyleSheet.create({
     opacity: 0.65,
     fontSize: 10,
     marginTop: 5,
-  },
-
-  addSchool: {
-    color: COLORS.primaryBrown,
-    fontSize: 11,
-    fontWeight: "bold",
-    marginTop: 8,
   },
 
   /*
