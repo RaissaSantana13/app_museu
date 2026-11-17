@@ -1,7 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as Linking from "expo-linking";
 import { useRouter } from "expo-router";
 import React from "react";
 import {
+  Alert,
   Modal,
   SafeAreaView,
   StyleSheet,
@@ -18,6 +20,29 @@ interface MenuModalProps {
 
 export function MenuModal({ visible, onClose }: MenuModalProps) {
   const router = useRouter();
+  async function openVirtualTour() {
+    const siteUrl = process.env.EXPO_PUBLIC_SITE_URL?.trim().replace(
+      /\/+$/,
+      "",
+    );
+
+    if (!siteUrl) {
+      Alert.alert(
+        "Tour Virtual",
+        "O endereço do site do museu não foi configurado.",
+      );
+      return;
+    }
+
+    try {
+      await Linking.openURL(`${siteUrl}/tour-virtual`);
+    } catch {
+      Alert.alert("Tour Virtual", "Não foi possível abrir o site do museu.");
+      return;
+    }
+
+    onClose();
+  }
   return (
     <Modal
       animationType="fade"
@@ -36,13 +61,13 @@ export function MenuModal({ visible, onClose }: MenuModalProps) {
               style={styles.menuItem}
               accessibilityRole="button"
               onPress={() => {
-              onClose();
-              router.navigate("/");
+                onClose();
+                router.navigate("/");
               }}
             >
               <Text style={styles.menuText}>Home</Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => {
@@ -53,7 +78,11 @@ export function MenuModal({ visible, onClose }: MenuModalProps) {
               <Text style={styles.menuText}>Acervo</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItem}>
+            <TouchableOpacity
+              accessibilityRole="link"
+              style={styles.menuItem}
+              onPress={openVirtualTour}
+            >
               <Text style={styles.menuText}>Tour Virtual</Text>
             </TouchableOpacity>
 
