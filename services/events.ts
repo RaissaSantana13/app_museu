@@ -84,6 +84,10 @@ export interface EventSchedule {
   date: string;
   details: string;
   isoDateTime: string;
+  weekdayShort: string;
+  day: string;
+  month: string;
+  time: string;
 }
 
 // A API pode envelopar a resposta em { dados }, { data } ou devolver direto.
@@ -328,6 +332,13 @@ export function buildSchedules(event: ApiEvent): EventSchedule[] {
       }),
       details: timeLabel ? `${formattedWeekday}, ${timeLabel}` : formattedWeekday,
       isoDateTime: `${dateKey}T${hhmm}:00.000Z`,
+      weekdayShort: formattedWeekday.slice(0, 3).toUpperCase(),
+      day: String(day.getUTCDate()).padStart(2, "0"),
+      month: day
+        .toLocaleDateString("pt-BR", { month: "short", timeZone: "UTC" })
+        .replace(".", "")
+        .toUpperCase(),
+      time: timeStr || (isAllDay ? "Dia todo" : ""),
     });
   }
 

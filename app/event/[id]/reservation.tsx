@@ -1,8 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Animated,
   ScrollView,
   StyleSheet,
   Text,
@@ -126,6 +127,60 @@ export default function ReservationScreen() {
     Data e horário
   */
   const [selectedSchedule, setSelectedSchedule] = useState<string | null>(null);
+  const scheduleCarouselRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
+  const [carouselScrollAnim] = useState(() => new Animated.Value(0));
+  const carouselScrollXRef = useRef(0);
+  const [carouselWidth, setCarouselWidth] = useState(0);
+  const [carouselContentWidth, setCarouselContentWidth] = useState(0);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const maxCarouselScroll = Math.max(0, carouselContentWidth - carouselWidth);
+  const canScrollCarousel = maxCarouselScroll > 4;
+
+  useEffect(() => {
+    const syncArrows = (x: number) => {
+      carouselScrollXRef.current = x;
+      const nextLeft = x > 8;
+      const nextRight = x < maxCarouselScroll - 8;
+      setCanScrollLeft((prev) => (prev === nextLeft ? prev : nextLeft));
+      setCanScrollRight((prev) => (prev === nextRight ? prev : nextRight));
+    };
+
+    syncArrows(carouselScrollXRef.current);
+    const idListener = carouselScrollAnim.addListener(({ value }) => {
+      syncArrows(value);
+    });
+    return () => carouselScrollAnim.removeListener(idListener);
+  }, [carouselScrollAnim, maxCarouselScroll]);
+
+  const thumbTranslateX = useMemo(
+    () =>
+      carouselScrollAnim.interpolate({
+        inputRange: [0, Math.max(1, maxCarouselScroll)],
+        outputRange: [0, 44],
+        extrapolate: "clamp",
+      }),
+    [carouselScrollAnim, maxCarouselScroll],
+  );
+
+  const handleCarouselScroll = useMemo(
+    () =>
+      Animated.event(
+        [{ nativeEvent: { contentOffset: { x: carouselScrollAnim } } }],
+        { useNativeDriver: true },
+      ),
+    [carouselScrollAnim],
+  );
+
+  function scrollScheduleCarousel(direction: "left" | "right") {
+    const step = 176;
+    const nextX =
+      direction === "right"
+        ? Math.min(maxCarouselScroll, carouselScrollXRef.current + step)
+        : Math.max(0, carouselScrollXRef.current - step);
+    scheduleCarouselRef.current?.scrollTo({ x: nextX, animated: true });
+  }
 
   /*
     Individual
@@ -484,9 +539,72 @@ export default function ReservationScreen() {
         </View>
 
         {/* DATA E HORÁRIO */}
-        <Text style={styles.sectionTitle}>Data e horário *</Text>
+        <View style={styles.scheduleHeader}>
+          <Text style={[styles.sectionTitle, styles.scheduleHeaderTitle]}>
+            Data e horário *
+          </Text>
 
-        <View style={styles.scheduleContainer}>
+          {canScrollCarousel && (
+            <View style={styles.scheduleHint}>
+              <Text style={styles.scheduleHintText}>Deslize</Text>
+
+              <TouchableOpacity
+                style={[
+                  styles.scheduleArrowButton,
+                  !canScrollLeft && styles.scheduleArrowDisabled,
+                ]}
+                disabled={!canScrollLeft}
+                onPress={() => scrollScheduleCarousel("left")}
+                accessibilityRole="button"
+                accessibilityLabel="Ver datas anteriores"
+              >
+                <Ionicons
+                  name="chevron-back"
+                  size={15}
+                  color={COLORS.primaryBrown}
+                />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.scheduleArrowButton,
+                  !canScrollRight && styles.scheduleArrowDisabled,
+                ]}
+                disabled={!canScrollRight}
+                onPress={() => scrollScheduleCarousel("right")}
+                accessibilityRole="button"
+                accessibilityLabel="Ver próximas datas"
+              >
+                <Ionicons
+                  name="chevron-forward"
+                  size={15}
+                  color={COLORS.primaryBrown}
+                />
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+
+        <Animated.ScrollView
+          ref={scheduleCarouselRef}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          scrollEventThrottle={16}
+          onLayout={(event) =>
+            setCarouselWidth(event.nativeEvent.layout.width)
+          }
+          onContentSizeChange={(width) => setCarouselContentWidth(width)}
+          onScroll={handleCarouselScroll}
+          style={[
+            styles.scheduleCarousel,
+            !canScrollCarousel && styles.scheduleCarouselNoScroll,
+          ]}
+          contentContainerStyle={styles.scheduleCarouselContent}
+        >
+          {eventInfo.schedules.length === 0 && (
+            <Text style={styles.helperText}>Nenhuma data disponível.</Text>
+          )}
+
           {eventInfo.schedules.map((schedule) => {
             const isSelected = selectedSchedule === schedule.id;
 
@@ -494,45 +612,78 @@ export default function ReservationScreen() {
               <TouchableOpacity
                 key={schedule.id}
                 style={[
-                  styles.scheduleOption,
-                  isSelected && styles.scheduleOptionSelected,
+                  styles.scheduleCard,
+                  isSelected && styles.scheduleCardSelected,
                 ]}
                 onPress={() => {
                   setSelectedSchedule(schedule.id);
                   setFormError("");
                 }}
+                accessibilityRole="button"
+                accessibilityState={{ selected: isSelected }}
+                accessibilityLabel={`${schedule.details}, ${schedule.date}`}
               >
-                <View>
-                  <Text
+                <Text
+                  style={[
+                    styles.scheduleWeekday,
+                    isSelected && styles.scheduleTextSelected,
+                  ]}
+                >
+                  {schedule.weekdayShort}
+                </Text>
+
+                <Text
+                  style={[
+                    styles.scheduleDay,
+                    isSelected && styles.scheduleDaySelected,
+                  ]}
+                >
+                  {schedule.day}
+                </Text>
+
+                <Text
+                  style={[
+                    styles.scheduleMonth,
+                    isSelected && styles.scheduleTextSelected,
+                  ]}
+                >
+                  {schedule.month}
+                </Text>
+
+                {!!schedule.time && (
+                  <View
                     style={[
-                      styles.scheduleDate,
-                      isSelected && styles.scheduleTextSelected,
+                      styles.scheduleTimeBadge,
+                      isSelected && styles.scheduleTimeBadgeSelected,
                     ]}
                   >
-                    {schedule.date}
-                  </Text>
-
-                  <Text
-                    style={[
-                      styles.scheduleDetails,
-                      isSelected && styles.scheduleTextSelected,
-                    ]}
-                  >
-                    {schedule.details}
-                  </Text>
-                </View>
-
-                {isSelected && (
-                  <Ionicons
-                    name="checkmark-circle"
-                    size={23}
-                    color={COLORS.yellowIcon}
-                  />
+                    <Text
+                      style={[
+                        styles.scheduleTime,
+                        isSelected && styles.scheduleTimeSelected,
+                      ]}
+                    >
+                      {schedule.time}
+                    </Text>
+                  </View>
                 )}
               </TouchableOpacity>
             );
           })}
-        </View>
+        </Animated.ScrollView>
+
+        {canScrollCarousel && (
+          <View style={styles.scheduleProgressWrapper}>
+            <View style={styles.scheduleProgressTrack}>
+              <Animated.View
+                style={[
+                  styles.scheduleProgressThumb,
+                  { transform: [{ translateX: thumbTranslateX }] },
+                ]}
+              />
+            </View>
+          </View>
+        )}
 
         {/* TIPO DE RESERVA */}
         <Text style={styles.sectionTitle}>Tipo de reserva</Text>
@@ -1043,40 +1194,141 @@ const styles = StyleSheet.create({
   /*
     DATA / HORÁRIO
   */
-  scheduleContainer: {
-    gap: 8,
-    marginBottom: 20,
-  },
-
-  scheduleOption: {
-    borderWidth: 1,
-    borderColor: "#C8B991",
-    borderRadius: 10,
-    padding: 12,
+  scheduleHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    marginBottom: 8,
   },
 
-  scheduleOptionSelected: {
+  scheduleHeaderTitle: {
+    marginBottom: 0,
+  },
+
+  scheduleHint: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+
+  scheduleHintText: {
+    fontSize: 11,
+    color: COLORS.primaryBrown,
+    opacity: 0.75,
+    marginRight: 2,
+  },
+
+  scheduleArrowButton: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "#DED69A",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  scheduleArrowDisabled: {
+    opacity: 0.35,
+  },
+
+  scheduleCarousel: {
+    marginHorizontal: -20,
+    marginBottom: 10,
+  },
+
+  scheduleCarouselNoScroll: {
+    marginBottom: 20,
+  },
+
+  scheduleCarouselContent: {
+    paddingHorizontal: 20,
+    gap: 10,
+  },
+
+  scheduleProgressWrapper: {
+    alignItems: "center",
+    marginBottom: 20,
+  },
+
+  scheduleProgressTrack: {
+    width: 72,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#DED69A",
+    overflow: "hidden",
+  },
+
+  scheduleProgressThumb: {
+    width: 28,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: COLORS.primaryBrown,
+  },
+
+  scheduleCard: {
+    width: 78,
+    borderWidth: 1,
+    borderColor: "#C8B991",
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 6,
+    alignItems: "center",
+  },
+
+  scheduleCardSelected: {
     backgroundColor: COLORS.primaryBrown,
     borderColor: COLORS.primaryBrown,
   },
 
-  scheduleDate: {
-    fontSize: 14,
+  scheduleWeekday: {
+    fontSize: 11,
     fontWeight: "bold",
+    color: COLORS.textDark,
+    opacity: 0.75,
+  },
+
+  scheduleDay: {
+    fontSize: 26,
+    fontWeight: "900",
+    color: COLORS.primaryBrown,
+    marginVertical: 2,
+  },
+
+  scheduleDaySelected: {
+    color: COLORS.yellowIcon,
+  },
+
+  scheduleMonth: {
+    fontSize: 11,
+    fontWeight: "600",
     color: COLORS.textDark,
   },
 
-  scheduleDetails: {
-    marginTop: 3,
-    fontSize: 12,
+  scheduleTimeBadge: {
+    marginTop: 8,
+    backgroundColor: "#DED69A",
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+  },
+
+  scheduleTimeBadgeSelected: {
+    backgroundColor: COLORS.yellowIcon,
+  },
+
+  scheduleTime: {
+    fontSize: 10,
+    fontWeight: "bold",
+    color: COLORS.primaryBrown,
+  },
+
+  scheduleTimeSelected: {
     color: COLORS.textDark,
   },
 
   scheduleTextSelected: {
     color: COLORS.secondaryBeige,
+    opacity: 1,
   },
 
   /*
