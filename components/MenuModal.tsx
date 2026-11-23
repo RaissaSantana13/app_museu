@@ -86,18 +86,24 @@ export function MenuModal({ visible, onClose }: MenuModalProps) {
               <Text style={styles.menuText}>Tour Virtual</Text>
             </TouchableOpacity>
 
+            {/*
             <TouchableOpacity style={styles.menuItem}>
               <Text style={styles.menuText}>Histórias</Text>
             </TouchableOpacity>
+            */}
 
+            {/*
             <TouchableOpacity style={styles.menuItem}>
               <Text style={styles.menuText}>Suporte</Text>
             </TouchableOpacity>
+            */}
 
             {/* Nova opção adicionada: Contato */}
+            {/*
             <TouchableOpacity style={styles.menuItem}>
               <Text style={styles.menuText}>Contato</Text>
             </TouchableOpacity>
+            */}
           </View>
 
           <TouchableOpacity
