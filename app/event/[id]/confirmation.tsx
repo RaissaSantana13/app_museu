@@ -20,6 +20,8 @@ export default function ConfirmationScreen() {
   const [isMenuVisible, setIsMenuVisible] = useState(false);
 
   const {
+    bookingId,
+    bookingStatus,
     reservationType,
     eventTitle,
     date,
@@ -29,6 +31,8 @@ export default function ConfirmationScreen() {
     group,
     participants,
   } = useLocalSearchParams<{
+    bookingId?: string;
+    bookingStatus?: "PENDENTE" | "CONFIRMADO" | "CANCELADO";
     reservationType: "individual" | "group";
     eventTitle: string;
     date: string;
@@ -39,13 +43,16 @@ export default function ConfirmationScreen() {
     participants: string;
   }>();
 
-  /*
-    Código temporário enquanto ainda não existe API.
+  const reservationCode = bookingId
+    ? `#${new Date().getFullYear()}-${String(bookingId).padStart(4, "0")}`
+    : "-";
 
-    Futuramente esse valor deve vir de:
-    event_bookings.id_booking
-  */
-  const reservationCode = "#2026-B849";
+  const statusLabel =
+    bookingStatus === "CONFIRMADO"
+      ? "RESERVA CONFIRMADA"
+      : bookingStatus === "CANCELADO"
+        ? "RESERVA CANCELADA"
+        : "PENDENTE DE CONFIRMAÇÃO";
 
   return (
     <View
@@ -101,7 +108,7 @@ export default function ConfirmationScreen() {
 
         {/* STATUS */}
         <View style={styles.statusBadge}>
-          <Text style={styles.statusText}>PENDENTE DE CONFIRMAÇÃO</Text>
+          <Text style={styles.statusText}>{statusLabel}</Text>
         </View>
 
         {/* DETALHES */}

@@ -2,7 +2,7 @@ import { Link, type Href } from "expo-router";
 import React, { useState } from "react";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { COLORS } from "../constants/theme";
-import type { ArtworkSummary } from "../services/works";
+import { getLocalWorkCover, type ArtworkSummary } from "../services/works";
 
 interface ArtworkCardProps {
   artwork: ArtworkSummary;
@@ -11,6 +11,8 @@ interface ArtworkCardProps {
 
 export function ArtworkCard({ artwork, coverUrl }: ArtworkCardProps) {
   const [failedCover, setFailedCover] = useState<string>();
+  const remoteCover = coverUrl && coverUrl !== failedCover ? coverUrl : undefined;
+  const coverSource = remoteCover ? { uri: remoteCover } : getLocalWorkCover(artwork.title);
 
   return (
     <Link
@@ -18,13 +20,13 @@ export function ArtworkCard({ artwork, coverUrl }: ArtworkCardProps) {
       asChild
     >
       <TouchableOpacity style={styles.card} activeOpacity={0.9}>
-        {coverUrl && coverUrl !== failedCover ? (
+        {coverSource ? (
           <Image
-            source={{ uri: coverUrl }}
+            source={coverSource}
             style={styles.image}
             resizeMode="cover"
             accessibilityLabel={`Capa de ${artwork.title}`}
-            onError={() => setFailedCover(coverUrl)}
+            onError={remoteCover ? () => setFailedCover(remoteCover) : undefined}
           />
         ) : (
           <View style={[styles.image, styles.placeholder]}>

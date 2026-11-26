@@ -1,3 +1,6 @@
+import type { ImageSourcePropType } from "react-native";
+import { ARTWORKS_DATA } from "../constants/data";
+
 export interface ArtworkSummary {
   idArtwork: number;
   title: string;
@@ -24,6 +27,11 @@ const WORKS_PAGE_SIZE = 20;
 
 export function normalizeTitle(title: string) {
   return title.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
+export function getLocalWorkCover(title: string): ImageSourcePropType | undefined {
+  const normalizedTitle = normalizeTitle(title);
+  return ARTWORKS_DATA.find((work) => normalizeTitle(work.title) === normalizedTitle)?.img;
 }
 
 async function fetchWorksPage(
@@ -125,4 +133,84 @@ export async function listWorkCovers(
   }
 
   return covers;
+}
+
+export interface ArtworkDetails extends ArtworkSummary {
+  type?: string | null;
+  technique?: string | null;
+}
+
+export async function getWorkById(
+  id: number,
+  signal: AbortSignal,
+): Promise<ArtworkDetails | null> {
+  if (!Number.isSafeInteger(id) || id <= 0) {
+    throw new Error("Identificador da obra inválido.");
+  }
+
+  const response = await fetch(
+    `${getApiUrl()}/api/v1/works/${id}`,
+    {
+      headers: { Accept: "application/json" },
+      signal,
+    },
+  ).catch((cause: unknown) => {
+    if (signal.aborted) throw cause;
+
+    throw new Error(
+      "Não foi possível conectar à API. Verifique sua conexão e tente novamente.",
+    );
+  });
+
+  if (response.status === 404) {
+    return null;
+  }
+
+  if (response.status === 429) {
+    throw new Error(
+      "Muitas consultas. Aguarde um momento e tente novamente.",
+    );
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      `Não foi possível carregar a obra (${response.status}).`,
+    );
+  }
+
+  const body: unknown = await response.json();
+
+  if (!body || typeof body !== "object" || !("dados" in body)) {
+    throw new Error("A API retornou uma resposta inesperada.");
+  }
+
+  const data = body.dados;
+
+  if (!data || typeof data !== "object") {
+    throw new Error("A API retornou dados inválidos para a obra.");
+  }
+
+  const work = data as Record<string, unknown>;
+
+  if (work.idArtwork !== id || typeof work.title !== "string") {
+    throw new Error("A API retornou dados inválidos para a obra.");
+  }
+
+  // Normaliza campos opcionais antes de entregá-los à tela.
+  return {
+    idArtwork: id,
+    title: work.title,
+    artistName:
+      typeof work.artistName === "string" ? work.artistName : null,
+    creationYear:
+      typeof work.creationYear === "number" &&
+      Number.isFinite(work.creationYear)
+        ? work.creationYear
+        : null,
+    description:
+      typeof work.description === "string" ? work.description : null,
+    type: typeof work.type === "string" ? work.type : null,
+    technique:
+      typeof work.technique === "string" ? work.technique : null,
+  };
 }
